@@ -69,7 +69,7 @@ protected:
     bool RebuildContainer();
     bool InsertGenesisBlock(CBlock& block);
     Errno GetTxContxt(storage::CBlockView& view, const CTransaction& tx, CTxContxt& txContxt);
-    bool GetBlockChanges(const CBlockIndex* pIndexNew, const CBlockIndex* pIndexFork,
+    bool GetBlockChanges(const CBlockIndex* pIndexNew, const CBlockEx& newBlockEx, const CBlockIndex* pIndexFork,
                          std::vector<CBlockEx>& vBlockAddNew, std::vector<CBlockEx>& vBlockRemove);
     bool GetBlockDelegateAgreement(const uint256& hashBlock, const CBlock& block, const CBlockIndex* pIndexPrev,
                                    CDelegateAgreement& agreement);

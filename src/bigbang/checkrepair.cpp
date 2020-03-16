@@ -842,6 +842,7 @@ bool CCheckBlockWalker::Initialize(const string& strPath)
 
 bool CCheckBlockWalker::Walk(const CBlockEx& block, uint32 nFile, uint32 nOffset)
 {
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
     const uint256 hashBlock = block.GetHash();
     if (mapBlock.count(hashBlock) > 0)
     {
@@ -969,6 +970,10 @@ bool CCheckBlockWalker::Walk(const CBlockEx& block, uint32 nFile, uint32 nOffset
     }
 
     nBlockCount++;
+
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
+    StdDebug("check", "CCH:height:%d: CCheckBlockWalker::Walk: time: %ld us",
+             hashBlock.Get32(7), (t1 - t0).ticks());
 
     return true;
 }
@@ -1132,6 +1137,8 @@ bool CCheckBlockWalker::GetBlockDelegateAgreement(const uint256& hashBlock, cons
         return false;
     }
 
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
+
     delegate::CDelegateVerify verifier(enrolled.mapWeight, enrolled.mapEnrollData);
     map<CDestination, size_t> mapBallot;
     if (!verifier.VerifyProof(block.vchProof, agreement.nAgreement, agreement.nWeight, mapBallot))
@@ -1139,6 +1146,12 @@ bool CCheckBlockWalker::GetBlockDelegateAgreement(const uint256& hashBlock, cons
         StdLog("check", "GetBlockDelegateAgreement : Invalid block proof, block: %s", hashBlock.ToString().c_str());
         return false;
     }
+
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
+
+    StdDebug("check", "GetBlockDelegateAgreement: time: %ld us, block: [%d] %s",
+             (t1 - t0).ticks(), hashBlock.Get32(7), hashBlock.GetHex().c_str());
+
     return true;
 }
 

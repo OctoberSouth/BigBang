@@ -4,6 +4,7 @@
 
 #include "blockchain.h"
 
+#include "base.h"
 #include "delegatecomm.h"
 #include "delegateverify.h"
 
@@ -402,6 +403,7 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         return ERR_SYS_STORAGE_ERROR;
     }
 
+    auto t0_VerifyBlock = boost::posix_time::microsec_clock::universal_time();
     int64 nReward;
     CDelegateAgreement agreement;
     CBlockIndex* pIndexRef = nullptr;
@@ -411,13 +413,19 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         Log("AddNewBlock Verify Block Error(%s) : %s ", ErrorString(err), hash.ToString().c_str());
         return err;
     }
+    auto t1_VerifyBlock = boost::posix_time::microsec_clock::universal_time();
+    StdDebug("CCHTEST", "CCH:height:%d: BlockChain::VerifyBlock: time: %ld us",
+             block.GetBlockHeight(), (t1_VerifyBlock - t0_VerifyBlock).ticks());
 
+    auto t0_GetBlockView = boost::posix_time::microsec_clock::universal_time();
     storage::CBlockView view;
     if (!cntrBlock.GetBlockView(block.hashPrev, view, !block.IsOrigin()))
     {
         Log("AddNewBlock Get Block View Error: %s ", block.hashPrev.ToString().c_str());
         return ERR_SYS_STORAGE_ERROR;
     }
+    auto t1_GetBlockView = boost::posix_time::microsec_clock::universal_time();
+    StdDebug("CCHTEST", "CCH:height:%d: BlockChain::GetBlockView: time: %ld us", block.GetBlockHeight(), (t1_GetBlockView - t0_GetBlockView).ticks());
 
     if (!block.IsVacant())
     {
@@ -441,6 +449,7 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         nForkHeight = pIndexPrev->nHeight + 1;
     }
 
+    auto t0_verify_tx = boost::posix_time::microsec_clock::universal_time();
     // map<pair<CDestination, uint256>, uint256> mapEnrollTx;
     for (const CTransaction& tx : block.vtx)
     {
@@ -521,6 +530,8 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
 
         nTotalFee += tx.nTxFee;
     }
+    auto t1_verify_tx = boost::posix_time::microsec_clock::universal_time();
+    StdDebug("CCHTEST", "CCH:height:%d: BlockChain::VerifyTx: time: %ld us", block.GetBlockHeight(), (t1_verify_tx - t0_verify_tx).ticks());
 
     if (block.txMint.nAmount > nTotalFee + nReward)
     {
@@ -530,7 +541,18 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
 
     // Get block trust
     uint256 nChainTrust = pCoreProtocol->GetBlockTrust(block, pIndexPrev, agreement, pIndexRef);
+    /*uint256 nChainTrust;
+    if (block.IsProofOfWork())
+    {
+        nChainTrust = uint256(1) << 8;
+    }
+    else
+    {
+        nChainTrust = uint256(23) << 8;
+    }*/
     StdTrace("BlockChain", "AddNewBlock block chain trust: %s", nChainTrust.GetHex().c_str());
+
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
 
     CBlockIndex* pIndexNew;
     if (!cntrBlock.AddNew(hash, blockex, &pIndexNew, nChainTrust, pCoreProtocol->MinEnrollAmount()))
@@ -538,6 +560,9 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         Log("AddNewBlock Storage AddNew Error : %s ", hash.ToString().c_str());
         return ERR_SYS_STORAGE_ERROR;
     }
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
+    StdDebug("CCHTEST", "CCH:height:%d: BlockChain::AddNew: time: %ld us", block.GetBlockHeight(), (t1 - t0).ticks());
+
     Log("AddNew Block : %s", pIndexNew->ToString().c_str());
 
     CBlockIndex* pIndexFork = nullptr;
@@ -550,19 +575,24 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         return OK;
     }
 
-    if (!cntrBlock.CommitBlockView(view, pIndexNew))
+    auto t11 = boost::posix_time::microsec_clock::universal_time();
+    if (!cntrBlock.CommitBlockView(view, pIndexNew, blockex))
     {
         Log("AddNewBlock Storage Commit BlockView Error : %s ", hash.ToString().c_str());
         return ERR_SYS_STORAGE_ERROR;
     }
+    auto t2 = boost::posix_time::microsec_clock::universal_time();
+    StdDebug("CCHTEST", "CCH:height:%d: BlockChain::CommitBlockView: time: %ld us", block.GetBlockHeight(), (t2 - t11).ticks());
 
     update = CBlockChainUpdate(pIndexNew);
     view.GetTxUpdated(update.setTxUpdate);
-    if (!GetBlockChanges(pIndexNew, pIndexFork, update.vBlockAddNew, update.vBlockRemove))
+    if (!GetBlockChanges(pIndexNew, blockex, pIndexFork, update.vBlockAddNew, update.vBlockRemove))
     {
         Log("AddNewBlock Storage GetBlockChanges Error : %s ", hash.ToString().c_str());
         return ERR_SYS_STORAGE_ERROR;
     }
+    auto t2_3333 = boost::posix_time::microsec_clock::universal_time();
+    StdDebug("CCHTEST", "CCH:height:%d: BlockChain::GetBlockChanges: time: %ld us", block.GetBlockHeight(), (t2_3333 - t2).ticks());
 
     if (!update.vBlockRemove.empty())
     {
@@ -686,7 +716,7 @@ Errno CBlockChain::AddNewOrigin(const CBlock& block, CBlockChainUpdate& update)
     Log("AddNew Origin Block : %s ", hash.ToString().c_str());
     Log("    %s", pIndexNew->ToString().c_str());
 
-    if (!cntrBlock.CommitBlockView(view, pIndexNew))
+    if (!cntrBlock.CommitBlockView(view, pIndexNew, blockex))
     {
         Log("AddNewOrigin Storage Commit BlockView Error : %s ", hash.ToString().c_str());
         return ERR_SYS_STORAGE_ERROR;
@@ -1066,20 +1096,28 @@ Errno CBlockChain::GetTxContxt(storage::CBlockView& view, const CTransaction& tx
     return OK;
 }
 
-bool CBlockChain::GetBlockChanges(const CBlockIndex* pIndexNew, const CBlockIndex* pIndexFork,
+bool CBlockChain::GetBlockChanges(const CBlockIndex* pIndexNew, const CBlockEx& newBlockEx, const CBlockIndex* pIndexFork,
                                   vector<CBlockEx>& vBlockAddNew, vector<CBlockEx>& vBlockRemove)
 {
+    const CBlockIndex* pOldNew = pIndexNew;
     while (pIndexNew != pIndexFork)
     {
         int64 nLastBlockTime = pIndexFork ? pIndexFork->GetBlockTime() : -1;
         if (pIndexNew->GetBlockTime() >= nLastBlockTime)
         {
-            CBlockEx block;
-            if (!cntrBlock.Retrieve(pIndexNew, block))
+            if (pOldNew == pIndexNew)
             {
-                return false;
+                vBlockAddNew.push_back(newBlockEx);
             }
-            vBlockAddNew.push_back(block);
+            else
+            {
+                CBlockEx block;
+                if (!cntrBlock.Retrieve(pIndexNew, block))
+                {
+                    return false;
+                }
+                vBlockAddNew.push_back(block);
+            }
             pIndexNew = pIndexNew->pPrev;
         }
         else
@@ -1120,6 +1158,7 @@ bool CBlockChain::GetBlockDelegateAgreement(const uint256& hashBlock, const CBlo
         return false;
     }
 
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
     delegate::CDelegateVerify verifier(enrolled.mapWeight, enrolled.mapEnrollData);
     map<CDestination, size_t> mapBallot;
     if (!verifier.VerifyProof(block.vchProof, agreement.nAgreement, agreement.nWeight, mapBallot))
@@ -1127,6 +1166,9 @@ bool CBlockChain::GetBlockDelegateAgreement(const uint256& hashBlock, const CBlo
         Log("GetBlockDelegateAgreement : Invalid block proof : %s \n", hashBlock.ToString().c_str());
         return false;
     }
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
+    StdDebug("CCHTEST", "CCH:height:%d: CBlockChain::GetBlockDelegateAgreement::VerifyProof: time: %ld us",
+             CBlock::GetBlockHeightByHash(hashBlock), (t1 - t0).ticks());
 
     pCoreProtocol->GetDelegatedBallot(agreement.nAgreement, agreement.nWeight, mapBallot, enrolled.vecAmount, pIndex->GetMoneySupply(), agreement.vBallot, pIndexPrev->GetBlockHeight() + 1);
 
@@ -1189,6 +1231,7 @@ Errno CBlockChain::VerifyBlock(const uint256& hashBlock, const CBlock& block, CB
                 return pCoreProtocol->VerifyDelegatedProofOfStake(block, pIndexPrev, agreement);
             }
         }
+        //return OK;
     }
     else if (!block.IsVacant())
     {

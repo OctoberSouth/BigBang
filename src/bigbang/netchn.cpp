@@ -1239,7 +1239,15 @@ void CNetChannel::AddNewBlock(const uint256& hashFork, const uint256& hash, CSch
                 }
             }
 
+            auto t0 = boost::posix_time::microsec_clock::universal_time();
+
             Errno err = pDispatcher->AddNewBlock(*pBlock, nNonceSender);
+
+            auto t1 = boost::posix_time::microsec_clock::universal_time();
+
+            StdDebug("CCHTEST", "CCH:height:%d: NetChannel::pDispatcher->AddNewBlock: time: %ld us",
+                     CBlock::GetBlockHeightByHash(hashBlock), (t1 - t0).ticks());
+
             if (err == OK)
             {
                 StdDebug("NetChannel", "NetChannel AddNewBlock success, peer: %s, height: %d, block: %s",

@@ -179,6 +179,7 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     {
         return err;
     }
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
 
     CTxSetChange changeTxSet;
     if (!pTxPool->SynchronizeBlockChain(updateBlockChain, changeTxSet))
@@ -230,6 +231,8 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     {
         UpdatePrimaryBlock(block, updateBlockChain, changeTxSet, nNonce);
     }
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
+    StdDebug("CCHTEST", "CCH:height:%d: CDispatcher::AddNewBlock other: time: %ld us", block.GetBlockHeight(), (t1 - t0).ticks());
 
     return OK;
 }
@@ -332,7 +335,13 @@ void CDispatcher::UpdatePrimaryBlock(const CBlock& block, const CBlockChainUpdat
         std::async(std::launch::async, [cmd]() { return ::system(cmd.c_str()); });
     }
     CDelegateRoutine routineDelegate;
+
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
     pConsensus->PrimaryUpdate(updateBlockChain, changeTxSet, routineDelegate);
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
+    StdDebug("CCHTEST", "CCH:height:%d: pConsensus->PrimaryUpdate: time: %ld us",
+             block.GetBlockHeight(), (t1 - t0).ticks());
+
     pDelegatedChannel->PrimaryUpdate(updateBlockChain.nLastBlockHeight - updateBlockChain.vBlockAddNew.size(),
                                      routineDelegate.vEnrolledWeight, routineDelegate.vDistributeData, routineDelegate.mapPublishData);
 

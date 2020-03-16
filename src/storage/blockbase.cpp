@@ -976,7 +976,7 @@ bool CBlockBase::GetForkBlockView(const uint256& hashFork, CBlockView& view)
     return true;
 }
 
-bool CBlockBase::CommitBlockView(CBlockView& view, CBlockIndex* pIndexNew)
+bool CBlockBase::CommitBlockView(CBlockView& view, CBlockIndex* pIndexNew, const CBlockEx& newBlockEx)
 {
     const uint256 hashFork = pIndexNew->GetOriginHash();
 
@@ -1007,12 +1007,14 @@ bool CBlockBase::CommitBlockView(CBlockView& view, CBlockIndex* pIndexNew)
         spFork = AddNewFork(profile, pIndexNew);
     }
 
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
     vector<pair<uint256, CTxIndex>> vTxNew;
-    if (!GetTxNewIndex(view, pIndexNew, vTxNew))
+    if (!GetTxNewIndex(view, pIndexNew, newBlockEx, vTxNew))
     {
         StdTrace("BlockBase", "CommitBlockView::GetTxNewIndex view failed");
         return false;
     }
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
 
     vector<uint256> vTxDel;
     view.GetTxRemoved(vTxDel);
@@ -1021,16 +1023,22 @@ bool CBlockBase::CommitBlockView(CBlockView& view, CBlockIndex* pIndexNew)
     vector<CTxOutPoint> vRemove;
     view.GetUnspentChanges(vAddNew, vRemove);
 
+    auto t2 = boost::posix_time::microsec_clock::universal_time();
     if (hashFork == view.GetForkHash())
     {
         spFork->UpgradeToWrite();
     }
 
+    auto t3 = boost::posix_time::microsec_clock::universal_time();
     if (!dbBlock.UpdateFork(hashFork, pIndexNew->GetBlockHash(), view.GetForkHash(), vTxNew, vTxDel, vAddNew, vRemove))
     {
         StdTrace("BlockBase", "CommitBlockView::UpdateFork %s  failed", hashFork.ToString().c_str());
         return false;
     }
+    auto t4 = boost::posix_time::microsec_clock::universal_time();
+    StdDebug("CCHTEST", "CCH:height:%d: CommitBlockView::UpdateFork: GetTxNewIndex: %ld us, UpgradeToWrite: %ld us, UpdateFork: %ld us",
+             pIndexNew->GetBlockHeight(), (t1 - t0).ticks(), (t3 - t2).ticks(), (t4 - t3).ticks());
+
     spFork->UpdateLast(pIndexNew);
 
     Log("B", "Update fork %s, last block hash=%s", hashFork.ToString().c_str(),
@@ -2174,7 +2182,7 @@ bool CBlockBase::GetTxUnspent(const uint256 fork, const CTxOutPoint& out, CTxOut
     return dbBlock.RetrieveTxUnspent(fork, out, unspent);
 }
 
-bool CBlockBase::GetTxNewIndex(CBlockView& view, CBlockIndex* pIndexNew, vector<pair<uint256, CTxIndex>>& vTxNew)
+bool CBlockBase::GetTxNewIndex(CBlockView& view, CBlockIndex* pIndexNew, const CBlockEx& newBlockEx, vector<pair<uint256, CTxIndex>>& vTxNew)
 {
     vector<CBlockIndex*> vPath;
     if (view.GetFork() != nullptr && view.GetFork()->GetLast() != nullptr)
@@ -2191,9 +2199,16 @@ bool CBlockBase::GetTxNewIndex(CBlockView& view, CBlockIndex* pIndexNew, vector<
     {
         CBlockIndex* pIndex = vPath[i];
         CBlockEx block;
-        if (!tsBlock.Read(block, pIndex->nFile, pIndex->nOffset))
+        if (pIndex == pIndexNew)
         {
-            return false;
+            block = newBlockEx;
+        }
+        else
+        {
+            if (!tsBlock.Read(block, pIndex->nFile, pIndex->nOffset))
+            {
+                return false;
+            }
         }
         int nHeight = pIndex->GetBlockHeight();
         uint32 nOffset = pIndex->nOffset + block.GetTxSerializedOffset();

@@ -246,7 +246,7 @@ public:
     bool GetBlockView(CBlockView& view);
     bool GetBlockView(const uint256& hash, CBlockView& view, bool fCommitable = false);
     bool GetForkBlockView(const uint256& hashFork, CBlockView& view);
-    bool CommitBlockView(CBlockView& view, CBlockIndex* pIndexNew);
+    bool CommitBlockView(CBlockView& view, CBlockIndex* pIndexNew, const CBlockEx& newBlockEx);
     bool LoadIndex(CBlockOutline& diskIndex);
     bool LoadTx(CTransaction& tx, uint32 nTxFile, uint32 nTxOffset, uint256& hashFork);
     bool FilterTx(const uint256& hashFork, CTxFilter& filter);
@@ -281,7 +281,7 @@ protected:
     bool VerifyDelegateVote(const uint256& hash, CBlockEx& block, int64 nMinEnrollAmount, CDelegateContext& ctxtDelegate);
     bool UpdateDelegate(const uint256& hash, CBlockEx& block, const CDiskPos& posBlock, CDelegateContext& ctxtDelegate);
     bool GetTxUnspent(const uint256 fork, const CTxOutPoint& out, CTxOut& unspent);
-    bool GetTxNewIndex(CBlockView& view, CBlockIndex* pIndexNew, std::vector<std::pair<uint256, CTxIndex>>& vTxNew);
+    bool GetTxNewIndex(CBlockView& view, CBlockIndex* pIndexNew, const CBlockEx& newBlockEx, std::vector<std::pair<uint256, CTxIndex>>& vTxNew);
     void ClearCache();
     bool LoadDB();
     bool SetupLog(const boost::filesystem::path& pathDataLocation, bool fDebug);
