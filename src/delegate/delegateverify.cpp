@@ -24,6 +24,7 @@ CDelegateVerify::CDelegateVerify(const map<CDestination, size_t>& mapWeight,
 bool CDelegateVerify::VerifyProof(const vector<unsigned char>& vchProof, uint256& nAgreement,
                                   size_t& nWeight, map<CDestination, size_t>& mapBallot)
 {
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
     uint256 nAgreementParse;
     try
     {
@@ -54,6 +55,9 @@ bool CDelegateVerify::VerifyProof(const vector<unsigned char>& vchProof, uint256
     }
 
     GetAgreement(nAgreement, nWeight, mapBallot);
+
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
+    StdDebug("CDelegateVerify", "VerifyProof: time: %ld us", (t1 - t0).ticks());
 
     return (nAgreement == nAgreementParse);
 }

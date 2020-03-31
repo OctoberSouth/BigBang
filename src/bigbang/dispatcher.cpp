@@ -287,38 +287,12 @@ Errno CDispatcher::AddNewTx(const CTransaction& tx, uint64 nNonce)
 
 bool CDispatcher::AddNewDistribute(const uint256& hashAnchor, const CDestination& dest, const vector<unsigned char>& vchDistribute)
 {
-    uint256 hashFork;
-    int nHeight;
-    if (!pBlockChain->GetBlockLocation(hashAnchor, hashFork, nHeight))
-    {
-        StdError("CDispatcher", "AddNewDistribute: GetBlockLocation fail, hashAnchor: %s", hashAnchor.GetHex().c_str());
-        return false;
-    }
-    if (hashFork != pCoreProtocol->GetGenesisBlockHash())
-    {
-        StdError("CDispatcher", "AddNewDistribute: fork error, hashAnchor: %s, hashFork: %s",
-                 hashAnchor.GetHex().c_str(), hashFork.GetHex().c_str());
-        return false;
-    }
-    return pConsensus->AddNewDistribute(nHeight, hashAnchor, dest, vchDistribute);
+    return pConsensus->AddNewDistribute(hashAnchor, dest, vchDistribute);
 }
 
 bool CDispatcher::AddNewPublish(const uint256& hashAnchor, const CDestination& dest, const vector<unsigned char>& vchPublish)
 {
-    uint256 hashFork;
-    int nHeight;
-    if (!pBlockChain->GetBlockLocation(hashAnchor, hashFork, nHeight))
-    {
-        StdError("CDispatcher", "AddNewPublish: GetBlockLocation fail, hashAnchor: %s", hashAnchor.GetHex().c_str());
-        return false;
-    }
-    if (hashFork != pCoreProtocol->GetGenesisBlockHash())
-    {
-        StdError("CDispatcher", "AddNewPublish: fork error, hashAnchor: %s, hashFork: %s",
-                 hashAnchor.GetHex().c_str(), hashFork.GetHex().c_str());
-        return false;
-    }
-    return pConsensus->AddNewPublish(nHeight, hashAnchor, dest, vchPublish);
+    return pConsensus->AddNewPublish(hashAnchor, dest, vchPublish);
 }
 
 void CDispatcher::UpdatePrimaryBlock(const CBlock& block, const CBlockChainUpdate& updateBlockChain, const CTxSetChange& changeTxSet, const uint64& nNonce)
@@ -332,37 +306,42 @@ void CDispatcher::UpdatePrimaryBlock(const CBlock& block, const CBlockChainUpdat
             block_hash += " " + ite->GetHash().GetHex();
         }
         cmd += block_hash;
-        std::async(std::launch::async, [cmd]() { return ::system(cmd.c_str()); });
+        static std::future<int> fut;
+        fut = std::async(std::launch::async, [cmd]() { return ::system(cmd.c_str()); });
     }
     CDelegateRoutine routineDelegate;
 
     auto t0 = boost::posix_time::microsec_clock::universal_time();
     pConsensus->PrimaryUpdate(updateBlockChain, changeTxSet, routineDelegate);
+
     auto t1 = boost::posix_time::microsec_clock::universal_time();
     StdDebug("CCHTEST", "CCH:height:%d: pConsensus->PrimaryUpdate: time: %ld us",
              block.GetBlockHeight(), (t1 - t0).ticks());
 
+    int64 nPublishTime = GetTime();
+
     pDelegatedChannel->PrimaryUpdate(updateBlockChain.nLastBlockHeight - updateBlockChain.vBlockAddNew.size(),
-                                     routineDelegate.vEnrolledWeight, routineDelegate.vDistributeData, routineDelegate.mapPublishData);
+                                     routineDelegate.vEnrolledWeight, routineDelegate.vDistributeData,
+                                     routineDelegate.mapPublishData, routineDelegate.hashDistributeOfPublish, nPublishTime);
 
     for (const CTransaction& tx : routineDelegate.vEnrollTx)
     {
-        if (!pTxPool->Exists(tx.vInput[0].prevout.hash))
+        //if (!pTxPool->Exists(tx.vInput[0].prevout.hash))
+        //{
+        Errno err = AddNewTx(tx, nNonce);
+        if (err == OK)
         {
-            Errno err = AddNewTx(tx, nNonce);
-            if (err == OK)
-            {
-                Log("Send DelegateTx success, txid: %s, previd: %s.",
-                    tx.GetHash().GetHex().c_str(),
-                    tx.vInput[0].prevout.hash.GetHex().c_str());
-            }
-            else
-            {
-                Log("Send DelegateTx fail, err: [%d] %s, txid: %s, previd: %s.",
-                    err, ErrorString(err), tx.GetHash().GetHex().c_str(),
-                    tx.vInput[0].prevout.hash.GetHex().c_str());
-            }
+            Log("Send DelegateTx success, txid: %s, previd: %s.",
+                tx.GetHash().GetHex().c_str(),
+                tx.vInput[0].prevout.hash.GetHex().c_str());
         }
+        else
+        {
+            Log("Send DelegateTx fail, err: [%d] %s, txid: %s, previd: %s.",
+                err, ErrorString(err), tx.GetHash().GetHex().c_str(),
+                tx.vInput[0].prevout.hash.GetHex().c_str());
+        }
+        //}
     }
 
     CEventBlockMakerUpdate* pBlockMakerUpdate = new CEventBlockMakerUpdate(0);
@@ -370,6 +349,8 @@ void CDispatcher::UpdatePrimaryBlock(const CBlock& block, const CBlockChainUpdat
     {
         CProofOfSecretShare proof;
         proof.Load(block.vchProof);
+        pBlockMakerUpdate->data.hashParent = updateBlockChain.hashParent;
+        pBlockMakerUpdate->data.nOriginHeight = updateBlockChain.nOriginHeight;
         pBlockMakerUpdate->data.hashBlock = updateBlockChain.hashLastBlock;
         pBlockMakerUpdate->data.nBlockTime = updateBlockChain.nLastBlockTime;
         pBlockMakerUpdate->data.nBlockHeight = updateBlockChain.nLastBlockHeight;
