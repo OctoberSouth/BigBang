@@ -989,7 +989,7 @@ bool CCheckBlockWalker::Walk(const CBlockEx& block, uint32 nFile, uint32 nOffset
     }
 
     CBlockIndex* pNewBlockIndex = nullptr;
-    CBlockOutline* pBlockOutline = objBlockIndexWalker.GetBlockOutline(hashBlock);
+    CBlockOutline* pBlockOutline = nullptr; //objBlockIndexWalker.GetBlockOutline(hashBlock);
     if (pBlockOutline == nullptr)
     {
         uint256 nChainTrust;
