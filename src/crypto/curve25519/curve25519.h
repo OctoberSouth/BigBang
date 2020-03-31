@@ -19,12 +19,12 @@
 #include "sc25519_sodium.h"
 
 // old ed25519 code
-// using CFP25519 = curve25519::CFP25519;
-// using CSC25519 = curve25519::CSC25519;
-// using CEdwards25519 = curve25519::CEdwards25519;
+using CFP25519 = curve25519::CFP25519;
+using CSC25519 = curve25519::CSC25519;
+using CEdwards25519 = curve25519::CEdwards25519;
 
 // new ed25519 code with libsodium
-using CSC25519 = curve25519::CSC25519Sodium;
-using CEdwards25519 = curve25519::CEdwards25519Sodium;
+//using CSC25519 = curve25519::CSC25519Sodium;
+//using CEdwards25519 = curve25519::CEdwards25519Sodium;
 
 #endif // CRYPTO_CURVE25519_CURVE25519_H
