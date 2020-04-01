@@ -7,6 +7,12 @@
 
 #include "base.h"
 #include "txpooldata.h"
+#include "util.h"
+
+using namespace xengine;
+
+// This macro value is related to DPoS Weight value / PoW weight, if weight ratio changed, you must change it
+#define CACHE_HEIGHT_INTERVAL 23
 
 namespace bigbang
 {
@@ -217,6 +223,7 @@ public:
     {
         mapSpent[out].SetSpent(txidNextTxIn);
     }
+    bool AddTxIndex(const uint256& txid, CPooledTx& tx);
     bool AddNew(const uint256& txid, CPooledTx& tx);
     void Remove(const uint256& txid)
     {
@@ -227,6 +234,8 @@ public:
             {
                 SetUnspent(pTx->vInput[i].prevout);
             }
+            xengine::StdTrace("CTxPoolView", "Remove: setTxLinkIndex erase, txid: %s, seq: %ld",
+                              txid.GetHex().c_str(), pTx->nSequenceNumber);
             setTxLinkIndex.erase(txid);
         }
     }
@@ -237,16 +246,97 @@ public:
     }
     void InvalidateSpent(const CTxOutPoint& out, CTxPoolView& viewInvolvedTx);
     void ArrangeBlockTx(std::vector<CTransaction>& vtx, int64& nTotalTxFee, int64 nBlockTime, std::size_t nMaxSize, std::map<CDestination, int>& mapVoteCert,
-                        std::map<CDestination, int64>& mapVote, int64 nWeightRatio);
+                        std::map<CDestination, int64>& mapVote, int64 nMinEnrollAmount);
 
 private:
     void GetAllPrevTxLink(const CPooledTxLink& link, std::vector<CPooledTxLink>& prevLinks);
     bool AddArrangeBlockTx(std::vector<CTransaction>& vtx, int64& nTotalTxFee, int64 nBlockTime, std::size_t nMaxSize, std::size_t& nTotalSize,
-                           std::map<CDestination, int>& mapVoteCert, std::set<uint256>& setUnTx, CPooledTx* ptx, std::map<CDestination, int64>& mapVote, int64 nWeightRatio);
+                           std::map<CDestination, int>& mapVoteCert, std::set<uint256>& setUnTx, CPooledTx* ptx, std::map<CDestination, int64>& mapVote, int64 nMinEnrollAmount);
 
 public:
     CPooledTxLinkSet setTxLinkIndex;
     std::map<CTxOutPoint, CSpent> mapSpent;
+};
+
+class CTxCache
+{
+public:
+    CTxCache(size_t nHeightIntervalIn = 0)
+      : nHeightInterval(nHeightIntervalIn) {}
+    CTxCache(const CTxCache& cache)
+      : nHeightInterval(cache.nHeightInterval), mapCache(cache.mapCache) {}
+    bool Exists(const uint256& hash)
+    {
+        return mapCache.count(hash) > 0;
+    }
+    void AddNew(const uint256& hash, const std::vector<CTransaction>& vtxIn)
+    {
+        mapCache[hash] = vtxIn;
+
+        const uint256& highestHash = mapCache.rbegin()->first;
+        uint32 upperHeight = CBlock::GetBlockHeightByHash(highestHash);
+
+        if (upperHeight > nHeightInterval)
+        {
+            uint32 lowerHeight = upperHeight - (nHeightInterval - 1);
+
+            for (auto iter = mapCache.begin(); iter != mapCache.end();)
+            {
+                uint32 height = CBlock::GetBlockHeightByHash(iter->first);
+                if (height < lowerHeight)
+                {
+                    iter = mapCache.erase(iter);
+                }
+                else
+                {
+                    ++iter;
+                }
+            }
+        }
+    }
+    bool Retrieve(const uint256& hash, std::vector<CTransaction>& vtx)
+    {
+        if (mapCache.find(hash) != mapCache.end())
+        {
+            vtx = mapCache[hash];
+            return true;
+        }
+        return false;
+    }
+    void Remove(const uint256& hash)
+    {
+        mapCache.erase(hash);
+    }
+    void Clear()
+    {
+        mapCache.clear();
+    }
+
+private:
+    size_t nHeightInterval;
+    std::map<uint256, std::vector<CTransaction>> mapCache;
+};
+
+class CCertTxDestCache
+{
+public:
+    CCertTxDestCache() {}
+
+    enum
+    {
+        MAX_CACHE_CERTTX_COUNT = 60,
+        CACHE_CERTTX_TIMEOUT = 3600 * 24
+    };
+
+    void AddDelegate(const CDestination& dest);
+    void AddCertTx(const CDestination& dest, const uint256& txid);
+    void RemoveCertTx(const CDestination& dest, const uint256& txid);
+    bool GetTimeoutCertTx(const CDestination& dest, uint256& txid);
+    bool IsOverMaxCertCount(const CDestination& dest);
+
+protected:
+    std::set<CDestination> setDelegate;
+    std::map<CDestination, std::map<uint256, int64>> mapCertTxDest;
 };
 
 class CTxPool : public ITxPool
@@ -263,10 +353,11 @@ public:
     void ListTx(const uint256& hashFork, std::vector<std::pair<uint256, std::size_t>>& vTxPool) override;
     void ListTx(const uint256& hashFork, std::vector<uint256>& vTxPool) override;
     bool FilterTx(const uint256& hashFork, CTxFilter& filter) override;
-    void ArrangeBlockTx(const uint256& hashFork, int64 nBlockTime, std::size_t nMaxSize,
+    bool ArrangeBlockTx(const uint256& hashFork, const uint256& hashPrev, int64 nBlockTime, std::size_t nMaxSize,
                         std::vector<CTransaction>& vtx, int64& nTotalTxFee) override;
     bool FetchInputs(const uint256& hashFork, const CTransaction& tx, std::vector<CTxOut>& vUnspent) override;
     bool SynchronizeBlockChain(const CBlockChainUpdate& update, CTxSetChange& change) override;
+    void AddDestDelegate(const CDestination& destDeleage) override;
 
 protected:
     bool HandleInitialize() override;
@@ -276,6 +367,7 @@ protected:
     bool LoadData();
     bool SaveData();
     Errno AddNew(CTxPoolView& txView, const uint256& txid, const CTransaction& tx, const uint256& hashFork, int nForkHeight);
+    void RemoveTx(const uint256& txid);
     uint64 GetSequenceNumber()
     {
         if (mapTx.empty())
@@ -284,6 +376,8 @@ protected:
         }
         return ((++nLastSequenceNumber) << 24);
     }
+    void ArrangeBlockTx(const uint256& hashFork, int64 nBlockTime, const uint256& hashBlock, std::size_t nMaxSize,
+                        std::vector<CTransaction>& vtx, int64& nTotalTxFee);
 
 protected:
     storage::CTxPoolData datTxPool;
@@ -293,6 +387,8 @@ protected:
     std::map<uint256, CTxPoolView> mapPoolView;
     std::map<uint256, CPooledTx> mapTx;
     uint64 nLastSequenceNumber;
+    std::map<uint256, CTxCache> mapTxCache;
+    CCertTxDestCache certTxDest;
 };
 
 } // namespace bigbang

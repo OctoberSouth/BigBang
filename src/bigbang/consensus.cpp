@@ -5,6 +5,7 @@
 #include "consensus.h"
 
 #include "address.h"
+#include "block.h"
 #include "template/delegate.h"
 
 using namespace std;
@@ -284,6 +285,8 @@ bool CConsensus::HandleInitialize()
 
         delegate.AddNewDelegate(ctxt.GetDestination());
 
+        pTxPool->AddDestDelegate(ctxt.GetDestination());
+
         Log("AddNew delegate : %s", CAddress(ctxt.GetDestination()).ToString().c_str());
     }
 
@@ -356,7 +359,8 @@ bool CConsensus::HandleEvent(CEventConsensusPrimaryBlockUpdate& eventUpdate)
     PrimaryUpdate(eventUpdate.data.updateBlock, eventUpdate.data.changeTx, routineDelegate);
 
     pDelegatedChannel->PrimaryUpdate(eventUpdate.data.updateBlock.nLastBlockHeight - eventUpdate.data.updateBlock.vBlockAddNew.size(),
-                                     routineDelegate.vEnrolledWeight, routineDelegate.vDistributeData, routineDelegate.mapPublishData);
+                                     routineDelegate.vEnrolledWeight, routineDelegate.vDistributeData, routineDelegate.mapPublishData,
+                                     routineDelegate.hashDistributeOfPublish, GetTime());
 
     for (const CTransaction& tx : routineDelegate.vEnrollTx)
     {
@@ -426,14 +430,14 @@ void CConsensus::PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChan
             delegate.Evolve(nBlockHeight, enrolled.mapWeight, enrolled.mapEnrollData, result, hash);
 
             std::map<CDestination, int64> mapDelegateVote;
-            int64 nDelegateWeightRatio = pBlockChain->GetDelegateWeightRatio(hash);
+            int64 nDelegateMinAmount = pBlockChain->GetDelegateMinEnrollAmount(hash);
             bool fGetVote = pBlockChain->GetBlockDelegateVote(hash, mapDelegateVote);
-            if (nDelegateWeightRatio < 0 || !fGetVote)
+            if (nDelegateMinAmount < 0 || !fGetVote)
             {
-                if (nDelegateWeightRatio < 0)
+                if (nDelegateMinAmount < 0)
                 {
-                    StdError("CConsensus", "PrimaryUpdate: GetDelegateWeightRatio fail, nDelegateWeightRatio: %.6f, hash: %s",
-                             ValueFromToken(nDelegateWeightRatio), hash.GetHex().c_str());
+                    StdError("CConsensus", "PrimaryUpdate: GetDelegateMinEnrollAmount fail, nDelegateMinAmount: %.6f, hash: %s",
+                             ValueFromToken(nDelegateMinAmount), hash.GetHex().c_str());
                 }
                 if (!fGetVote)
                 {
@@ -458,17 +462,17 @@ void CConsensus::PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChan
                         StdTrace("CConsensus", "PrimaryUpdate: mapDelegateVote find fail, destDelegate: %s", CAddress((*it).first).ToString().c_str());
                         continue;
                     }
-                    if (dt->second < nDelegateWeightRatio)
+                    if (dt->second < nDelegateMinAmount)
                     {
                         StdTrace("CConsensus", "PrimaryUpdate: not enough votes, vote: %.6f, weight ratio: %.6f, destDelegate: %s",
-                                 ValueFromToken(dt->second), ValueFromToken(nDelegateWeightRatio), CAddress((*it).first).ToString().c_str());
+                                 ValueFromToken(dt->second), ValueFromToken(nDelegateMinAmount), CAddress((*it).first).ToString().c_str());
                         continue;
                     }
                     CTransaction tx;
                     if ((*mi).second.BuildEnrollTx(tx, nBlockHeight, GetNetTime(), pCoreProtocol->GetGenesisBlockHash(), 0, (*it).second))
                     {
                         StdTrace("CConsensus", "PrimaryUpdate: BuildEnrollTx success, vote token: %.6f, weight ratio: %.6f, destDelegate: %s",
-                                 ValueFromToken(dt->second), ValueFromToken(nDelegateWeightRatio), CAddress((*it).first).ToString().c_str());
+                                 ValueFromToken(dt->second), ValueFromToken(nDelegateMinAmount), CAddress((*it).first).ToString().c_str());
                         routine.vEnrollTx.push_back(tx);
                     }
                 }
@@ -485,17 +489,18 @@ void CConsensus::PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChan
             }
             routine.vDistributeData.push_back(make_pair(hash, result.mapDistributeData));
 
-            if (i == 0)
+            if (i == 0 && result.mapPublishData.size() > 0)
             {
                 StdTrace("CConsensus", "result.mapPublishData size: %llu", result.mapPublishData.size());
                 for (map<CDestination, vector<unsigned char>>::iterator it = result.mapPublishData.begin();
                      it != result.mapPublishData.end(); ++it)
                 {
                     bool fCompleted = false;
-                    delegate.HandlePublish(nPublishTargetHeight, hash, (*it).first, (*it).second, fCompleted);
+                    delegate.HandlePublish(nPublishTargetHeight, result.hashDistributeOfPublish, (*it).first, (*it).second, fCompleted);
                     routine.fPublishCompleted = (routine.fPublishCompleted || fCompleted);
                 }
                 routine.mapPublishData = result.mapPublishData;
+                routine.hashDistributeOfPublish = result.hashDistributeOfPublish;
             }
 
             routine.vEnrolledWeight.push_back(make_pair(hash, enrolled.mapWeight));
@@ -512,19 +517,19 @@ void CConsensus::AddNewTx(const CAssembledTx& tx)
     }
 }
 
-bool CConsensus::AddNewDistribute(int nAnchorHeight, const uint256& hashDistributeAnchor, const CDestination& destFrom, const vector<unsigned char>& vchDistribute)
+bool CConsensus::AddNewDistribute(const uint256& hashDistributeAnchor, const CDestination& destFrom, const vector<unsigned char>& vchDistribute)
 {
     boost::unique_lock<boost::mutex> lock(mutex);
-    int nDistributeTargetHeight = nAnchorHeight + CONSENSUS_DISTRIBUTE_INTERVAL + 1;
-    return delegate.HandleDistribute(nDistributeTargetHeight, hashDistributeAnchor, destFrom, vchDistribute);
+    int nTargetHeight = CBlock::GetBlockHeightByHash(hashDistributeAnchor) + CONSENSUS_DISTRIBUTE_INTERVAL + 1;
+    return delegate.HandleDistribute(nTargetHeight, hashDistributeAnchor, destFrom, vchDistribute);
 }
 
-bool CConsensus::AddNewPublish(int nAnchorHeight, const uint256& hashPublishAnchor, const CDestination& destFrom, const vector<unsigned char>& vchPublish)
+bool CConsensus::AddNewPublish(const uint256& hashDistributeAnchor, const CDestination& destFrom, const vector<unsigned char>& vchPublish)
 {
     boost::unique_lock<boost::mutex> lock(mutex);
-    int nPublishTargetHeight = nAnchorHeight + 1;
+    int nTargetHeight = CBlock::GetBlockHeightByHash(hashDistributeAnchor) + CONSENSUS_DISTRIBUTE_INTERVAL + 1;
     bool fCompleted = false;
-    return delegate.HandlePublish(nPublishTargetHeight, hashPublishAnchor, destFrom, vchPublish, fCompleted);
+    return delegate.HandlePublish(nTargetHeight, hashDistributeAnchor, destFrom, vchPublish, fCompleted);
 }
 
 void CConsensus::GetAgreement(int nTargetHeight, uint256& nAgreement, size_t& nWeight, vector<CDestination>& vBallot)
@@ -580,7 +585,7 @@ bool CConsensus::LoadDelegateTx()
 
 bool CConsensus::LoadChain()
 {
-    int nLashBlockHeight = pBlockChain->GetBlockCount(pCoreProtocol->GetGenesisBlockHash()) - 1;
+    /*int nLashBlockHeight = pBlockChain->GetBlockCount(pCoreProtocol->GetGenesisBlockHash()) - 1;
     int nStartHeight = nLashBlockHeight - CONSENSUS_ENROLL_INTERVAL + 1;
     if (nStartHeight < 0)
     {
@@ -600,7 +605,7 @@ bool CConsensus::LoadChain()
             delegate::CDelegateEvolveResult result;
             delegate.Evolve(i, enrolled.mapWeight, enrolled.mapEnrollData, result, hashBlock);
         }
-    }
+    }*/
     return true;
 }
 
