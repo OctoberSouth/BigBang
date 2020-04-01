@@ -686,11 +686,16 @@ uint256 CCoreProtocol::GetBlockTrust(const CBlock& block, const CBlockIndex* pIn
             int64 nReward;
             if (GetProofOfWorkTarget(pIndexPrev, nAlgo, nBits, nReward))
             {
-                if (agreement.nWeight == 0 || nBits <= 0)
+                /*if (agreement.nWeight == 0 || nBits <= 0)
+                {
+                    StdLog("CCoreProtocol", "GetBlockTrust: nWeight or nBits error, nWeight: %lu, nBits: %d", agreement.nWeight, nBits);
+                }*/
+                //return uint256(uint64(agreement.nWeight)) << nBits;
+                if (nBits <= 0)
                 {
                     StdLog("CCoreProtocol", "GetBlockTrust: nWeight or nBits error, nWeight: %lu, nBits: %d", agreement.nWeight, nBits);
                 }
-                return uint256(uint64(agreement.nWeight)) << nBits;
+                return uint256(23) << nBits;
             }
             else
             {

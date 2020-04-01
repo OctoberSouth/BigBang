@@ -1212,12 +1212,12 @@ Errno CBlockChain::VerifyBlock(const uint256& hashBlock, const CBlock& block, CB
         /*if (!GetBlockDelegateAgreement(hashBlock, block, pIndexPrev, agreement))
         {
             return ERR_BLOCK_PROOF_OF_STAKE_INVALID;
-        }
+        }*/
 
         if (!GetBlockMintReward(block.hashPrev, nReward))
         {
             return ERR_BLOCK_COINBASE_INVALID;
-        }*/
+        }
 
         /*if (pCoreProtocol->CheckSpecialHeight(pIndexPrev->GetBlockHeight() + 1))
         {
