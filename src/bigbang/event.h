@@ -18,6 +18,9 @@
 namespace bigbang
 {
 
+////////////////////////////////////////////
+// CBlockMakerEventListener
+
 enum
 {
     EVENT_BASE = network::EVENT_PEER_MAX,
@@ -41,6 +44,28 @@ public:
     virtual ~CBlockMakerEventListener() {}
     DECLARE_EVENTHANDLER(CEventBlockMakerUpdate);
     DECLARE_EVENTHANDLER(CEventBlockMakerAgree);
+};
+
+////////////////////////////////////////////
+// CConsensusEventListener
+
+enum
+{
+    EVENT_CEL_BASE = network::EVENT_PEER_MAX,
+    EVENT_CEL_PRIMARY_BLOCK_UPDATE
+};
+
+class CConsensusEventListener;
+#define TYPE_CONSENSUSEVENT(type, body) \
+    xengine::CEventCategory<type, CConsensusEventListener, body, CNil>
+
+typedef TYPE_CONSENSUSEVENT(EVENT_CEL_PRIMARY_BLOCK_UPDATE, CConsensusPrimaryBlockUpdate) CEventConsensusPrimaryBlockUpdate;
+
+class CConsensusEventListener : virtual public xengine::CEventListener
+{
+public:
+    virtual ~CConsensusEventListener() {}
+    DECLARE_EVENTHANDLER(CEventConsensusPrimaryBlockUpdate);
 };
 
 } // namespace bigbang

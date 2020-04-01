@@ -164,11 +164,11 @@ public:
     }
 };
 
-class IConsensus : public xengine::IBase
+class IConsensus : public xengine::CEventProc
 {
 public:
     IConsensus()
-      : IBase("consensus") {}
+      : CEventProc("consensus") {}
     const CMintConfig* MintConfig()
     {
         return dynamic_cast<const CMintConfig*>(xengine::IBase::Config());

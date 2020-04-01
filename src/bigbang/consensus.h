@@ -7,6 +7,8 @@
 
 #include "base.h"
 #include "delegate.h"
+#include "event.h"
+#include "peernet.h"
 
 namespace bigbang
 {
@@ -89,11 +91,13 @@ protected:
     std::map<CTxOutPoint, CDelegateTx*> mapUnspent;
 };
 
-class CConsensus : public IConsensus
+class CConsensus : public IConsensus, virtual public CConsensusEventListener
 {
 public:
     CConsensus();
     ~CConsensus();
+    bool HandleEvent(CEventConsensusPrimaryBlockUpdate& eventUpdate) override;
+
     void PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChange& change, CDelegateRoutine& routine) override;
     void AddNewTx(const CAssembledTx& tx) override;
     bool AddNewDistribute(const uint256& hashDistributeAnchor, const CDestination& destFrom, const std::vector<unsigned char>& vchDistribute) override;
@@ -115,6 +119,8 @@ protected:
     ICoreProtocol* pCoreProtocol;
     IBlockChain* pBlockChain;
     ITxPool* pTxPool;
+    network::IDelegatedChannel* pDelegatedChannel;
+    IDispatcher* pDispatcher;
     delegate::CDelegate delegate;
     std::map<CDestination, CDelegateContext> mapContext;
 };

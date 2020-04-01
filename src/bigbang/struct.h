@@ -269,6 +269,14 @@ public:
     uint16 nMintType;
 };
 
+class CConsensusPrimaryBlockUpdate
+{
+public:
+    uint16 nMintType;
+    CBlockChainUpdate updateBlock;
+    CTxSetChange changeTx;
+};
+
 /* Net Channel */
 class CPeerKnownTx
 {

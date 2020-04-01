@@ -306,7 +306,8 @@ void CDispatcher::UpdatePrimaryBlock(const CBlock& block, const CBlockChainUpdat
         static std::future<int> fut;
         fut = std::async(std::launch::async, [cmd]() { return ::system(cmd.c_str()); });
     }
-    CDelegateRoutine routineDelegate;
+
+    /*CDelegateRoutine routineDelegate;
     pConsensus->PrimaryUpdate(updateBlockChain, changeTxSet, routineDelegate);
 
     int64 nPublishTime = GetTime();
@@ -331,7 +332,15 @@ void CDispatcher::UpdatePrimaryBlock(const CBlock& block, const CBlockChainUpdat
                 err, ErrorString(err), tx.GetHash().GetHex().c_str(),
                 tx.vInput[0].prevout.hash.GetHex().c_str());
         }
-        //}
+    }*/
+
+    CEventConsensusPrimaryBlockUpdate* pPrimaryBlockUpdate = new CEventConsensusPrimaryBlockUpdate(0);
+    if (pPrimaryBlockUpdate != nullptr)
+    {
+        pPrimaryBlockUpdate->data.nMintType = block.txMint.nType;
+        pPrimaryBlockUpdate->data.updateBlock = updateBlockChain;
+        pPrimaryBlockUpdate->data.changeTx = changeTxSet;
+        pConsensus->PostEvent(pPrimaryBlockUpdate);
     }
 
     CEventBlockMakerUpdate* pBlockMakerUpdate = new CEventBlockMakerUpdate(0);

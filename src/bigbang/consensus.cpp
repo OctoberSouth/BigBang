@@ -235,6 +235,8 @@ CConsensus::CConsensus()
     pCoreProtocol = nullptr;
     pBlockChain = nullptr;
     pTxPool = nullptr;
+    pDelegatedChannel = nullptr;
+    pDispatcher = nullptr;
 }
 
 CConsensus::~CConsensus()
@@ -258,6 +260,18 @@ bool CConsensus::HandleInitialize()
     if (!GetObject("txpool", pTxPool))
     {
         Error("Failed to request txpool");
+        return false;
+    }
+
+    if (!GetObject("delegatedchannel", pDelegatedChannel))
+    {
+        Error("Failed to request delegatedchanne");
+        return false;
+    }
+
+    if (!GetObject("dispatcher", pDispatcher))
+    {
+        Error("Failed to request dispatcher\n");
         return false;
     }
 
@@ -286,42 +300,85 @@ void CConsensus::HandleDeinitialize()
     pCoreProtocol = nullptr;
     pBlockChain = nullptr;
     pTxPool = nullptr;
+    pDelegatedChannel = nullptr;
+    pDispatcher = nullptr;
 }
 
 bool CConsensus::HandleInvoke()
 {
-    boost::unique_lock<boost::mutex> lock(mutex);
-
-    if (!delegate.Initialize())
     {
-        Error("Failed to initialize delegate");
+        boost::unique_lock<boost::mutex> lock(mutex);
+        if (!delegate.Initialize())
+        {
+            Error("Failed to initialize delegate");
+            return false;
+        }
+        if (!LoadDelegateTx())
+        {
+            Error("Failed to load delegate tx");
+            return false;
+        }
+        if (!LoadChain())
+        {
+            Error("Failed to load chain");
+            return false;
+        }
+    }
+    if (!IConsensus::HandleInvoke())
+    {
+        Error("CConsensus HandleInvoke fail");
         return false;
     }
-
-    if (!LoadDelegateTx())
-    {
-        Error("Failed to load delegate tx");
-        return false;
-    }
-
-    if (!LoadChain())
-    {
-        Error("Failed to load chain");
-        return false;
-    }
-
     return true;
 }
 
 void CConsensus::HandleHalt()
 {
-    boost::unique_lock<boost::mutex> lock(mutex);
-
-    delegate.Deinitialize();
-    for (map<CDestination, CDelegateContext>::iterator it = mapContext.begin(); it != mapContext.end(); ++it)
     {
-        (*it).second.Clear();
+        boost::unique_lock<boost::mutex> lock(mutex);
+        delegate.Deinitialize();
+        for (map<CDestination, CDelegateContext>::iterator it = mapContext.begin(); it != mapContext.end(); ++it)
+        {
+            (*it).second.Clear();
+        }
     }
+    IConsensus::HandleHalt();
+}
+
+bool CConsensus::HandleEvent(CEventConsensusPrimaryBlockUpdate& eventUpdate)
+{
+    StdTrace("CConsensus", "CEventConsensusPrimaryBlockUpdate: last height: %d, last block: %s",
+             eventUpdate.data.updateBlock.nLastBlockHeight, eventUpdate.data.updateBlock.hashLastBlock.GetHex().c_str());
+
+    if (mapContext.empty())
+    {
+        return true;
+    }
+
+    CDelegateRoutine routineDelegate;
+    PrimaryUpdate(eventUpdate.data.updateBlock, eventUpdate.data.changeTx, routineDelegate);
+
+    pDelegatedChannel->PrimaryUpdate(eventUpdate.data.updateBlock.nLastBlockHeight - eventUpdate.data.updateBlock.vBlockAddNew.size(),
+                                     routineDelegate.vEnrolledWeight, routineDelegate.vDistributeData, routineDelegate.mapPublishData,
+                                     routineDelegate.hashDistributeOfPublish, GetTime());
+
+    for (const CTransaction& tx : routineDelegate.vEnrollTx)
+    {
+        Errno err = pDispatcher->AddNewTx(tx, 0);
+        if (err == OK)
+        {
+            Log("Send DelegateTx success, txid: %s, previd: %s.",
+                tx.GetHash().GetHex().c_str(),
+                tx.vInput[0].prevout.hash.GetHex().c_str());
+        }
+        else
+        {
+            Log("Send DelegateTx fail, err: [%d] %s, txid: %s, previd: %s.",
+                err, ErrorString(err), tx.GetHash().GetHex().c_str(),
+                tx.vInput[0].prevout.hash.GetHex().c_str());
+        }
+    }
+    return true;
 }
 
 void CConsensus::PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChange& change, CDelegateRoutine& routine)
