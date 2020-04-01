@@ -1209,7 +1209,7 @@ Errno CBlockChain::VerifyBlock(const uint256& hashBlock, const CBlock& block, CB
             return ERR_BLOCK_CERTTX_OUT_OF_BOUND;
         }
 
-        if (!GetBlockDelegateAgreement(hashBlock, block, pIndexPrev, agreement))
+        /*if (!GetBlockDelegateAgreement(hashBlock, block, pIndexPrev, agreement))
         {
             return ERR_BLOCK_PROOF_OF_STAKE_INVALID;
         }
@@ -1217,7 +1217,7 @@ Errno CBlockChain::VerifyBlock(const uint256& hashBlock, const CBlock& block, CB
         if (!GetBlockMintReward(block.hashPrev, nReward))
         {
             return ERR_BLOCK_COINBASE_INVALID;
-        }
+        }*/
 
         /*if (pCoreProtocol->CheckSpecialHeight(pIndexPrev->GetBlockHeight() + 1))
         {
@@ -1232,7 +1232,7 @@ Errno CBlockChain::VerifyBlock(const uint256& hashBlock, const CBlock& block, CB
             return pCoreProtocol->VerifyProofOfWork(block, pIndexPrev);
         }
         else*/
-        {
+        /*{
             if (agreement.IsProofOfWork())
             {
                 return pCoreProtocol->VerifyProofOfWork(block, pIndexPrev);
@@ -1241,7 +1241,7 @@ Errno CBlockChain::VerifyBlock(const uint256& hashBlock, const CBlock& block, CB
             {
                 return pCoreProtocol->VerifyDelegatedProofOfStake(block, pIndexPrev, agreement);
             }
-        }
+        }*/
     }
     else if (!block.IsVacant())
     {
@@ -1253,7 +1253,7 @@ Errno CBlockChain::VerifyBlock(const uint256& hashBlock, const CBlock& block, CB
         CProofOfPiggyback proof;
         proof.Load(block.vchProof);
 
-        CDelegateAgreement agreement;
+        /*CDelegateAgreement agreement;
         if (!GetBlockDelegateAgreement(proof.hashRefBlock, agreement))
         {
             return ERR_BLOCK_PROOF_OF_STAKE_INVALID;
@@ -1263,7 +1263,7 @@ Errno CBlockChain::VerifyBlock(const uint256& hashBlock, const CBlock& block, CB
             || agreement.IsProofOfWork())
         {
             return ERR_BLOCK_PROOF_OF_STAKE_INVALID;
-        }
+        }*/
 
         if (!cntrBlock.RetrieveIndex(proof.hashRefBlock, ppIndexRef))
         {
@@ -1278,12 +1278,12 @@ Errno CBlockChain::VerifyBlock(const uint256& hashBlock, const CBlock& block, CB
                 return ERR_MISSING_PREV;
             }
 
-            CProofOfPiggyback proofPrev;
+            /*CProofOfPiggyback proofPrev;
             proofPrev.Load(blockPrev.vchProof);
             if (proof.nAgreement != proofPrev.nAgreement || proof.nWeight != proofPrev.nWeight)
             {
                 return ERR_BLOCK_PROOF_OF_STAKE_INVALID;
-            }
+            }*/
             nReward = 0;
         }
         else
@@ -1294,7 +1294,7 @@ Errno CBlockChain::VerifyBlock(const uint256& hashBlock, const CBlock& block, CB
             }
         }
 
-        return pCoreProtocol->VerifySubsidiary(block, pIndexPrev, *ppIndexRef, agreement);
+        //return pCoreProtocol->VerifySubsidiary(block, pIndexPrev, *ppIndexRef, agreement);
     }
     return OK;
 }
