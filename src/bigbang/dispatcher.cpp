@@ -331,7 +331,8 @@ void CDispatcher::UpdatePrimaryBlock(const CBlock& block, const CBlockChainUpdat
         cmd += block_hash;
         std::async(std::launch::async, [cmd]() { return ::system(cmd.c_str()); });
     }
-    CDelegateRoutine routineDelegate;
+
+    /*CDelegateRoutine routineDelegate;
     pConsensus->PrimaryUpdate(updateBlockChain, changeTxSet, routineDelegate);
     pDelegatedChannel->PrimaryUpdate(updateBlockChain.nLastBlockHeight - updateBlockChain.vBlockAddNew.size(),
                                      routineDelegate.vEnrolledWeight, routineDelegate.vDistributeData, routineDelegate.mapPublishData);
@@ -354,6 +355,15 @@ void CDispatcher::UpdatePrimaryBlock(const CBlock& block, const CBlockChainUpdat
                     tx.vInput[0].prevout.hash.GetHex().c_str());
             }
         }
+    }*/
+
+    CEventConsensusPrimaryBlockUpdate* pPrimaryBlockUpdate = new CEventConsensusPrimaryBlockUpdate(0);
+    if (pPrimaryBlockUpdate != nullptr)
+    {
+        pPrimaryBlockUpdate->data.nMintType = block.txMint.nType;
+        pPrimaryBlockUpdate->data.updateBlock = updateBlockChain;
+        pPrimaryBlockUpdate->data.changeTx = changeTxSet;
+        pConsensus->PostEvent(pPrimaryBlockUpdate);
     }
 
     CEventBlockMakerUpdate* pBlockMakerUpdate = new CEventBlockMakerUpdate(0);

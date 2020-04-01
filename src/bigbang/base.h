@@ -106,7 +106,7 @@ public:
     virtual bool GetBlockDelegateEnrolled(const uint256& hashBlock, CDelegateEnrolled& enrolled) = 0;
     virtual bool GetBlockDelegateAgreement(const uint256& hashRefBlock, CDelegateAgreement& agreement) = 0;
     virtual int64 GetBlockMoneySupply(const uint256& hashBlock) = 0;
-    virtual bool ListDelegatePayment(uint32 height,CBlock &block,std::multimap<int64, CDestination> &mapVotes) = 0;
+    virtual bool ListDelegatePayment(uint32 height, CBlock& block, std::multimap<int64, CDestination>& mapVotes) = 0;
 
     const CBasicConfig* Config()
     {
@@ -160,11 +160,11 @@ public:
     }
 };
 
-class IConsensus : public xengine::IBase
+class IConsensus : public xengine::CEventProc
 {
 public:
     IConsensus()
-      : IBase("consensus") {}
+      : CEventProc("consensus") {}
     const CMintConfig* MintConfig()
     {
         return dynamic_cast<const CMintConfig*>(xengine::IBase::Config());
