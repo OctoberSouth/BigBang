@@ -1246,9 +1246,12 @@ void CNetChannel::AddNewBlock(const uint256& hashFork, const uint256& hash, CSch
                 }
             }
 
+            auto t0 = boost::posix_time::microsec_clock::universal_time();
             Errno err = pDispatcher->AddNewBlock(*pBlock, nNonceSender);
             if (err == OK)
             {
+                auto t1 = boost::posix_time::microsec_clock::universal_time();
+                StdLog("NetChannel", "CSH::AddNewBlock ticks: %ld", (t1-t0).ticks());
                 StdDebug("NetChannel", "NetChannel AddNewBlock success, peer: %s, height: %d, block: %s",
                          GetPeerAddressInfo(nNonceSender).c_str(), CBlock::GetBlockHeightByHash(hashBlock), hashBlock.GetHex().c_str());
 
