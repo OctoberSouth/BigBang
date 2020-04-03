@@ -1034,15 +1034,23 @@ bool CBlockChain::GetBlockDelegateAgreement(const uint256& hashBlock, CDelegateA
         return false;
     }
 
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
     delegate::CDelegateVerify verifier(enrolled.mapWeight, enrolled.mapEnrollData);
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
     map<CDestination, size_t> mapBallot;
     if (!verifier.VerifyProof(block.vchProof, agreement.nAgreement, agreement.nWeight, mapBallot))
     {
         Log("GetBlockDelegateAgreement : Invalid block proof : %s \n", hashBlock.ToString().c_str());
         return false;
     }
+    auto t2 = boost::posix_time::microsec_clock::universal_time();
 
     pCoreProtocol->GetDelegatedBallot(agreement.nAgreement, agreement.nWeight, mapBallot, enrolled.vecAmount, pIndex->GetMoneySupply(), agreement.vBallot, pIndexRef->GetBlockHeight());
+    if (!agreement.IsProofOfWork())
+    {
+        Log("CDelegateVerify1 time: %ld, enroll: %ld, collect: %ld us", (t2 - t0).ticks(), (t1 - t0).ticks(), (t2 - t1).ticks());
+    }
+
 
     cacheAgreement.AddNew(hashBlock, agreement);
 
@@ -1173,15 +1181,22 @@ bool CBlockChain::GetBlockDelegateAgreement(const uint256& hashBlock, const CBlo
         return false;
     }
 
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
     delegate::CDelegateVerify verifier(enrolled.mapWeight, enrolled.mapEnrollData);
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
     map<CDestination, size_t> mapBallot;
     if (!verifier.VerifyProof(block.vchProof, agreement.nAgreement, agreement.nWeight, mapBallot))
     {
         Log("GetBlockDelegateAgreement : Invalid block proof : %s \n", hashBlock.ToString().c_str());
         return false;
     }
+    auto t2 = boost::posix_time::microsec_clock::universal_time();
 
     pCoreProtocol->GetDelegatedBallot(agreement.nAgreement, agreement.nWeight, mapBallot, enrolled.vecAmount, pIndex->GetMoneySupply(), agreement.vBallot, pIndexPrev->GetBlockHeight() + 1);
+    if (!agreement.IsProofOfWork())
+    {
+        Log("CDelegateVerify2 time: %ld, enroll: %ld, collect: %ld us", (t2 - t0).ticks(), (t1 - t0).ticks(), (t2 - t1).ticks());
+    }
 
     cacheAgreement.AddNew(hashBlock, agreement);
 
