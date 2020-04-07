@@ -1508,6 +1508,7 @@ void CNetChannel::SetPeerSyncStatus(uint64 nNonce, const uint256& hashFork, bool
         if (fSync)
         {
             mapUnsync[hashFork].erase(nNonce);
+            StdLog("NetChannel", "SetPeerSyncStatus BronadcastTxInv hashFork: %s", hashFork.ToString().c_str());
             BroadcastTxInv(hashFork);
         }
         else
@@ -1596,6 +1597,13 @@ bool CNetChannel::PushTxInv(const uint256& hashFork)
                     if (!eventInv.data.empty())
                     {
                         pPeerNet->DispatchEvent(&eventInv);
+
+                        
+                        for(const auto& txinv : eventInv.data)
+                        {
+                            StdLog("NetChannel", "PushTxInv::Dispacthed event CInv: %s", txinv.nHash.ToString().c_str());
+                        }
+                        
                         StdTrace("NetChannel", "PushTxInv: send tx inv request, inv count: %ld, peer: %s",
                                  eventInv.data.size(), peer.GetRemoteAddress().c_str());
                         if (fCompleted && eventInv.data.size() == network::CInv::MAX_INV_COUNT)
