@@ -467,6 +467,7 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         nForkHeight = pIndexPrev->nHeight + 1;
     }
     auto t4 = boost::posix_time::microsec_clock::universal_time();
+    (void)t4;
     // map<pair<CDestination, uint256>, uint256> mapEnrollTx;
     for (const CTransaction& tx : block.vtx)
     {
@@ -550,6 +551,7 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         nTotalFee += tx.nTxFee;
     }
     auto t5 = boost::posix_time::microsec_clock::universal_time();
+    (void)t5;
 
     if (block.txMint.nAmount > nTotalFee + nReward)
     {
@@ -568,6 +570,7 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         return ERR_SYS_STORAGE_ERROR;
     }
     auto t6 = boost::posix_time::microsec_clock::universal_time();
+    (void)t6;
     Log("AddNew Block : %s", pIndexNew->ToString().c_str());
 
     CBlockIndex* pIndexFork = nullptr;
@@ -581,6 +584,7 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
     }
 
     auto t7 = boost::posix_time::microsec_clock::universal_time();
+    (void)t7;
 
     if (!cntrBlock.CommitBlockView(view, pIndexNew))
     {
@@ -589,6 +593,7 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
     }
 
     auto t8 = boost::posix_time::microsec_clock::universal_time();
+    (void)t8;
 
     StdLog("BlockChain", "CSH::BlockChain::ValidateBlock %ld, VerifyBlock %ld", (t1 - t0).total_milliseconds(), (t3-t2).total_milliseconds());
 

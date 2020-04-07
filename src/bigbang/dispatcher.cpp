@@ -211,6 +211,7 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     }
 
     auto t5 = boost::posix_time::microsec_clock::universal_time();
+    (void)t5;
 
     if (!block.IsOrigin() && !block.IsVacant())
     {
@@ -221,6 +222,7 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     pService->NotifyBlockChainUpdate(updateBlockChain);
 
     auto t6 = boost::posix_time::microsec_clock::universal_time();
+    (void)t6;
 
     if (!block.IsVacant())
     {
@@ -239,6 +241,7 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     }
 
     auto t7 = boost::posix_time::microsec_clock::universal_time();
+    (void)t7;
 
     if (block.IsPrimary())
     {
@@ -246,6 +249,7 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     }
 
     auto t8 = boost::posix_time::microsec_clock::universal_time();
+    (void)t8;
 
     StdLog("Dispacther", "CSH::Dispacther::SynchronizeBlockChain ms: %ld, Wallet::AddNewFork: %ld, ", (t3-t2).total_milliseconds(), (t4-t3).total_milliseconds());
 
