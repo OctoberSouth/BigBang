@@ -40,7 +40,9 @@ static const int64 DELEGATE_PROOF_OF_STAKE_UNIT_AMOUNT = 1000 * COIN;
 static const int64 DELEGATE_PROOF_OF_STAKE_MAXIMUM_TIMES = 1000000 * COIN;
 
 // dpos begin height
-static const uint32 DELEGATE_PROOF_OF_STAKE_HEIGHT = 0;
+static const uint32 DELEGATE_PROOF_OF_STAKE_HEIGHT = 1;
+static const uint32 DELEGATE_PROOF_OF_STAKE_NEW_TIEM_HEIGHT = 1;
+static const uint32 DELEGATE_PROOF_OF_STAKE_NEW_TRUST_HEIGHT = 1;
 
 #ifndef BBCP_SET_TOKEN_DISTRIBUTION
 static const int64 BBCP_TOKEN_INIT = 300000000;
@@ -690,7 +692,14 @@ uint256 CCoreProtocol::GetBlockTrust(const CBlock& block, const CBlockIndex* pIn
                 {
                     StdLog("CCoreProtocol", "GetBlockTrust: nWeight or nBits error, nWeight: %lu, nBits: %d", agreement.nWeight, nBits);
                 }
-                return uint256(uint64(agreement.nWeight)) << nBits;
+                if (pIndexPrev->GetBlockHeight() >= DELEGATE_PROOF_OF_STAKE_NEW_TRUST_HEIGHT)
+                {
+                    return uint256(uint64(agreement.nWeight + 5)) << nBits;
+                }
+                else
+                {
+                    return uint256(uint64(agreement.nWeight)) << nBits;
+                }
             }
             else
             {
@@ -782,6 +791,15 @@ bool CCoreProtocol::GetProofOfWorkTarget(const CBlockIndex* pIndexPrev, int nAlg
     else if (nSpacing < nProofOfWorkLowerTarget && nBits < nProofOfWorkUpperLimit)
     {
         nBits++;
+    }
+    return true;
+}
+
+bool CCoreProtocol::IsDposHeight(int height)
+{
+    if (height < DELEGATE_PROOF_OF_STAKE_HEIGHT)
+    {
+        return false;
     }
     return true;
 }
@@ -893,16 +911,24 @@ uint32 CCoreProtocol::DPoSTimestamp(const CBlockIndex* pIndexPrev)
         return 0;
     }
 
-    const CBlockIndex* pIndex = pIndexPrev;
-    while (pIndex->IsProofOfWork() && pIndex->nHeight > DELEGATE_PROOF_OF_STAKE_HEIGHT && pIndex->pPrev != nullptr)
+    uint32 nTimeStamp = 0;
+    if (pIndexPrev->GetBlockHeight() >= DELEGATE_PROOF_OF_STAKE_NEW_TIEM_HEIGHT)
     {
-        pIndex = pIndex->pPrev;
+        nTimeStamp = pIndexPrev->GetBlockTime() + BLOCK_TARGET_SPACING;
     }
-
-    uint32 nTimeStamp = pIndex->nTimeStamp + BLOCK_TARGET_SPACING * (pIndexPrev->nHeight - pIndex->nHeight + 1);
-    if (nTimeStamp <= pIndexPrev->nTimeStamp)
+    else
     {
-        nTimeStamp = pIndexPrev->nTimeStamp + BLOCK_TARGET_SPACING;
+        const CBlockIndex* pIndex = pIndexPrev;
+        while (pIndex->IsProofOfWork() && pIndex->nHeight > DELEGATE_PROOF_OF_STAKE_HEIGHT && pIndex->pPrev != nullptr)
+        {
+            pIndex = pIndex->pPrev;
+        }
+
+        nTimeStamp = pIndex->nTimeStamp + BLOCK_TARGET_SPACING * (pIndexPrev->nHeight - pIndex->nHeight + 1);
+        if (nTimeStamp <= pIndexPrev->nTimeStamp)
+        {
+            nTimeStamp = pIndexPrev->nTimeStamp + BLOCK_TARGET_SPACING;
+        }
     }
 
     return nTimeStamp;

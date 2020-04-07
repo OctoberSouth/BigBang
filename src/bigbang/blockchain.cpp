@@ -595,7 +595,12 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
     auto t8 = boost::posix_time::microsec_clock::universal_time();
     (void)t8;
 
-    StdLog("BlockChain", "CSH::BlockChain::ValidateBlock %ld, VerifyBlock %ld", (t1 - t0).total_milliseconds(), (t3-t2).total_milliseconds());
+    StdLog("BlockChain", "CSH::BlockChain::ValidateBlock %ld, VerifyBlock %ld, vtx %ld, AddNew %ld, CommitBlockView %ld", 
+        (t1 - t0).total_milliseconds(), 
+        (t3-t2).total_milliseconds(), 
+        (t5-t4).total_milliseconds(),
+        (t6-t5).total_milliseconds(),
+        (t8-t7).total_milliseconds());
 
     StdTrace("BlockChain", "AddNewBlock: commit blockchain success, block tx count: %ld, block: %s", block.vtx.size(), hash.GetHex().c_str());
 
@@ -1210,7 +1215,7 @@ bool CBlockChain::GetBlockDelegateAgreement(const uint256& hashBlock, const CBlo
     pCoreProtocol->GetDelegatedBallot(agreement.nAgreement, agreement.nWeight, mapBallot, enrolled.vecAmount, pIndex->GetMoneySupply(), agreement.vBallot, pIndexPrev->GetBlockHeight() + 1);
     if (!agreement.IsProofOfWork())
     {
-        Log("SHT::CDelegateVerify2 time: %ld, enroll: %ld, collect: %ld us", (t2 - t0).ticks(), (t1 - t0).ticks(), (t2 - t1).ticks());
+        Log("CSH::CDelegateVerify2 time: %ld, enroll: %ld, collect: %ld us", (t2 - t0).ticks(), (t1 - t0).ticks(), (t2 - t1).ticks());
     }
 
     cacheAgreement.AddNew(hashBlock, agreement);
@@ -1249,19 +1254,15 @@ Errno CBlockChain::VerifyBlock(const uint256& hashBlock, const CBlock& block, CB
             return ERR_BLOCK_COINBASE_INVALID;
         }
 
-        /*if (pCoreProtocol->CheckSpecialHeight(pIndexPrev->GetBlockHeight() + 1))
+        if (!pCoreProtocol->IsDposHeight(pIndexPrev->GetBlockHeight() + 1))
         {
-            if (!pCoreProtocol->VerifySpecialAddress(pIndexPrev->GetBlockHeight() + 1, block))
-            {
-                return ERR_BLOCK_PROOF_OF_STAKE_INVALID;
-            }
             if (!agreement.IsProofOfWork())
             {
                 return ERR_BLOCK_PROOF_OF_STAKE_INVALID;
             }
             return pCoreProtocol->VerifyProofOfWork(block, pIndexPrev);
         }
-        else*/
+        else
         {
             if (agreement.IsProofOfWork())
             {
