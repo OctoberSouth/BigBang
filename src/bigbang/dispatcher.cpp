@@ -161,7 +161,7 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
         if (err == OK && !block.IsVacant())
         {
             auto t1 = boost::posix_time::microsec_clock::universal_time();
-            StdLog("Dispacther", "#####################CSH::Dispacther::AddNewBlock ms: %ld", (t1-t0).total_milliseconds());
+            StdLog("Dispacther", "CSH::Dispacther::AddNewBlock ms: %ld", (t1-t0).total_milliseconds());
             if (!nNonce)
             {
                 pDataStat->AddBlockMakerStatData(updateBlockChain.hashFork, block.IsProofOfWork(), block.vtx.size());
