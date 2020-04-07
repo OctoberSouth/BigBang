@@ -333,6 +333,7 @@ void CNetChannel::SubscribeFork(const uint256& hashFork, const uint64& nNonce)
             DispatchGetBlocksEvent(nPeer, hashFork);
         }
     }
+    StdLog("NetChannel", "SubscribeFork::BroadcastTxInv hashFork: %s", hashFork.ToString().c_str());
     BroadcastTxInv(hashFork);
 }
 
@@ -935,6 +936,7 @@ bool CNetChannel::HandleEvent(network::CEventPeerMsgRsp& eventMsgRsp)
                      GetPeerAddressInfo(nNonce).c_str(), hashFork.GetHex().c_str());
             if (eventMsgRsp.data.nRspResult == MSGRSP_RESULT_TXINV_COMPLETE)
             {
+                StdLog("NetChannel", "CEventPeerMsgRsp::BroadcastTxInv hashFork: %s", hashFork.ToString().c_str());
                 BroadcastTxInv(hashFork);
             }
         }
@@ -1442,6 +1444,7 @@ void CNetChannel::AddNewTx(const uint256& hashFork, const uint256& txid, CSchedu
     }
     if (nAddNewTx)
     {
+        StdLog("NetChannel", "AddNewTx::BroadcastTxInv hashFork: %s", hashFork.ToString().c_str());
         BroadcastTxInv(hashFork);
     }
 }
@@ -1508,7 +1511,7 @@ void CNetChannel::SetPeerSyncStatus(uint64 nNonce, const uint256& hashFork, bool
         if (fSync)
         {
             mapUnsync[hashFork].erase(nNonce);
-            StdLog("NetChannel", "SetPeerSyncStatus BronadcastTxInv hashFork: %s", hashFork.ToString().c_str());
+            StdLog("NetChannel", "SetPeerSyncStatus::BroadcastTxInv hashFork: %s", hashFork.ToString().c_str());
             BroadcastTxInv(hashFork);
         }
         else
