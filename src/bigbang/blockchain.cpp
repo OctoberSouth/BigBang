@@ -411,13 +411,14 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         Log("AddNewBlock Already Exists : %s ", hash.ToString().c_str());
         return ERR_ALREADY_HAVE;
     }
-
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
     err = pCoreProtocol->ValidateBlock(block);
     if (err != OK)
     {
         Log("AddNewBlock Validate Block Error(%s) : %s ", ErrorString(err), hash.ToString().c_str());
         return err;
     }
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
 
     CBlockIndex* pIndexPrev;
     if (!cntrBlock.RetrieveIndex(block.hashPrev, &pIndexPrev))
@@ -425,7 +426,7 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         Log("AddNewBlock Retrieve Prev Index Error: %s ", block.hashPrev.ToString().c_str());
         return ERR_SYS_STORAGE_ERROR;
     }
-
+    auto t2 = boost::posix_time::microsec_clock::universal_time();
     int64 nReward;
     CDelegateAgreement agreement;
     CBlockIndex* pIndexRef = nullptr;
@@ -435,6 +436,7 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         Log("AddNewBlock Verify Block Error(%s) : %s ", ErrorString(err), hash.ToString().c_str());
         return err;
     }
+    auto t3 = boost::posix_time::microsec_clock::universal_time();
 
     storage::CBlockView view;
     if (!cntrBlock.GetBlockView(block.hashPrev, view, !block.IsOrigin()))
@@ -464,7 +466,7 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
     {
         nForkHeight = pIndexPrev->nHeight + 1;
     }
-
+    auto t4 = boost::posix_time::microsec_clock::universal_time();
     // map<pair<CDestination, uint256>, uint256> mapEnrollTx;
     for (const CTransaction& tx : block.vtx)
     {
@@ -547,6 +549,7 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
 
         nTotalFee += tx.nTxFee;
     }
+    auto t5 = boost::posix_time::microsec_clock::universal_time();
 
     if (block.txMint.nAmount > nTotalFee + nReward)
     {
@@ -564,6 +567,7 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         Log("AddNewBlock Storage AddNew Error : %s ", hash.ToString().c_str());
         return ERR_SYS_STORAGE_ERROR;
     }
+    auto t6 = boost::posix_time::microsec_clock::universal_time();
     Log("AddNew Block : %s", pIndexNew->ToString().c_str());
 
     CBlockIndex* pIndexFork = nullptr;
@@ -576,11 +580,17 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         return OK;
     }
 
+    auto t7 = boost::posix_time::microsec_clock::universal_time();
+
     if (!cntrBlock.CommitBlockView(view, pIndexNew))
     {
         Log("AddNewBlock Storage Commit BlockView Error : %s ", hash.ToString().c_str());
         return ERR_SYS_STORAGE_ERROR;
     }
+
+    auto t8 = boost::posix_time::microsec_clock::universal_time();
+
+    StdLog("BlockChain", "CSH::BlockChain::ValidateBlock %ld, VerifyBlock %ld", (t1 - t0).total_milliseconds(), (t3-t2).total_milliseconds());
 
     StdTrace("BlockChain", "AddNewBlock: commit blockchain success, block tx count: %ld, block: %s", block.vtx.size(), hash.GetHex().c_str());
 
