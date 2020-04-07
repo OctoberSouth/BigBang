@@ -1262,7 +1262,7 @@ void CNetChannel::AddNewBlock(const uint256& hashFork, const uint256& hash, CSch
             if (err == OK)
             {
                 auto t1 = boost::posix_time::microsec_clock::universal_time();
-                StdLog("NetChannel", "CSH::AddNewBlock ticks: %ld", (t1-t0).ticks());
+                StdLog("NetChannel", "CSH::AddNewBlock miro-seconds: %ld", (t1-t0).total_milliseconds());
                 
                 
                 StdDebug("NetChannel", "NetChannel AddNewBlock success, peer: %s, height: %d, block: %s",

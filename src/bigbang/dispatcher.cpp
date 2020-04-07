@@ -153,13 +153,15 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
         StdError("CDispatcher", "AddNewBlock: prev block not exist, block: %s, prev: %s", block.GetHash().GetHex().c_str(), block.hashPrev.GetHex().c_str());
         return ERR_MISSING_PREV;
     }
-
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
     CBlockChainUpdate updateBlockChain;
     if (!block.IsOrigin())
     {
         err = pBlockChain->AddNewBlock(block, updateBlockChain);
         if (err == OK && !block.IsVacant())
         {
+            auto t1 = boost::posix_time::microsec_clock::universal_time();
+            StdLog("Dispacther", "CSH::Dispacther::AddNewBlock miro-seconds: %ld", (t1-t0).total_milliseconds());
             if (!nNonce)
             {
                 pDataStat->AddBlockMakerStatData(updateBlockChain.hashFork, block.IsProofOfWork(), block.vtx.size());
@@ -179,13 +181,17 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     {
         return err;
     }
-
+    
+    auto t2 = boost::posix_time::microsec_clock::universal_time();
     CTxSetChange changeTxSet;
     if (!pTxPool->SynchronizeBlockChain(updateBlockChain, changeTxSet))
     {
         StdError("CDispatcher", "AddNewBlock: TxPool SynchronizeBlockChain fail, block: %s", block.GetHash().GetHex().c_str());
         return ERR_SYS_DATABASE_ERROR;
     }
+
+    auto t3 = boost::posix_time::microsec_clock::universal_time();
+
 
     if (block.IsOrigin())
     {
@@ -196,11 +202,15 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
         }
     }
 
+    auto t4 = boost::posix_time::microsec_clock::universal_time();
+
     if (!pWallet->SynchronizeTxSet(changeTxSet))
     {
         StdError("CDispatcher", "AddNewBlock: Wallet SynchronizeTxSet fail, block: %s", block.GetHash().GetHex().c_str());
         return ERR_SYS_DATABASE_ERROR;
     }
+
+    auto t5 = boost::posix_time::microsec_clock::universal_time();
 
     if (!block.IsOrigin() && !block.IsVacant())
     {
@@ -209,6 +219,8 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     }
 
     pService->NotifyBlockChainUpdate(updateBlockChain);
+
+    auto t6 = boost::posix_time::microsec_clock::universal_time();
 
     if (!block.IsVacant())
     {
@@ -226,10 +238,16 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
         }
     }
 
+    auto t7 = boost::posix_time::microsec_clock::universal_time();
+
     if (block.IsPrimary())
     {
         UpdatePrimaryBlock(block, updateBlockChain, changeTxSet, nNonce);
     }
+
+    auto t8 = boost::posix_time::microsec_clock::universal_time();
+
+    StdLog("Dispacther", "CSH::Dispacther::SynchronizeBlockChain ms: %ld, Wallet::AddNewFork: %ld, ", (t3-t2).total_milliseconds(), (t4-t3).total_milliseconds());
 
     return OK;
 }
