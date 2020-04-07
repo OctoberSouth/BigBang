@@ -1596,6 +1596,7 @@ bool CNetChannel::PushTxInv(const uint256& hashFork)
                 {
                     if (!eventInv.data.empty())
                     {
+                        StdLog("NetChannel", "PushTxInv::Dispacthed event Inv hashFork: %s", hashFork.ToString().c_str());
                         pPeerNet->DispatchEvent(&eventInv);
 
                         
