@@ -1195,7 +1195,7 @@ bool CBlockChain::GetBlockDelegateAgreement(const uint256& hashBlock, const CBlo
     pCoreProtocol->GetDelegatedBallot(agreement.nAgreement, agreement.nWeight, mapBallot, enrolled.vecAmount, pIndex->GetMoneySupply(), agreement.vBallot, pIndexPrev->GetBlockHeight() + 1);
     if (!agreement.IsProofOfWork())
     {
-        Log("CDelegateVerify2 time: %ld, enroll: %ld, collect: %ld us", (t2 - t0).ticks(), (t1 - t0).ticks(), (t2 - t1).ticks());
+        Log("SHT::CDelegateVerify2 time: %ld, enroll: %ld, collect: %ld us", (t2 - t0).ticks(), (t1 - t0).ticks(), (t2 - t1).ticks());
     }
 
     cacheAgreement.AddNew(hashBlock, agreement);
