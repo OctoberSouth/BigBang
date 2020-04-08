@@ -647,12 +647,17 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
     auto t10 = boost::posix_time::microsec_clock::universal_time();
     (void)t10;
 
-    StdLog("BlockChain", "CSH::BlockChain::ValidateBlock %ld, VerifyBlock %ld, vtx %ld, AddNew %ld, CommitBlockView %ld", 
-        (t1 - t0).total_milliseconds(), 
-        (t3-t2).total_milliseconds(), 
+    StdLog("BlockChain", "CSH::BlockChain::ValidateBlock %ld, RetrieveIndex %ld, VerifyBlock %ld, GetBlockView %ld, vtx %ld, AddNew %ld, RetrieveFork %ld, CommitBlockView %ld, GetBlocksChanges %ld, AddNewAndRemove %ld", 
+        (t1 - t0).total_milliseconds(),
+        (t2-t1).total_milliseconds(),
+        (t3-t2).total_milliseconds(),
+        (t4-t3).total_milliseconds(), 
         (t5-t4).total_milliseconds(),
         (t6-t5).total_milliseconds(),
-        (t8-t7).total_milliseconds());
+        (t7-t6).total_milliseconds(),
+        (t8-t7).total_milliseconds(),
+        (t9-t8).total_milliseconds(),
+        (t10-t9).total_milliseconds());
 
     return OK;
 }
