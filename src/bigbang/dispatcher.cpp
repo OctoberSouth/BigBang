@@ -251,7 +251,7 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     (void)t8;
 
     StdLog("Dispacther", "CSH::Dispacther: pTxPool->SynchronizeBlockChain ms: %ld, pWallet->AddNewFork: %ld, "
-                         "pWallet->SynchronizeTxSet: %ld, pNetChannel->BroadcastBlockInv & pDataStat->AddP2pSynSendStatData: %ld"
+                         "pWallet->SynchronizeTxSet: %ld, pNetChannel->BroadcastBlockInv & pDataStat->AddP2pSynSendStatData: %ld, "
                          "pForkManager->ForkUpdate: %ld, UpdatePrimaryBlock: %ld",
            (t3 - t2).total_milliseconds(), (t4 - t3).total_milliseconds(), (t5 - t4).total_milliseconds(),
            (t6 - t5).total_milliseconds(), (t7 - t6).total_milliseconds(), (t8 - t7).total_milliseconds());
