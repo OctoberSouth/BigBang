@@ -166,10 +166,14 @@ public:
     {
         boost::unique_lock<boost::mutex> lock(mtxCache);
 
+        auto t0 = boost::posix_time::microsec_clock::universal_time();
         if (ReadFromCache(t, CDiskPos(nFile, nOffset)))
         {
+            auto t1 = boost::posix_time::microsec_clock::universal_time();
+            xengine::StdWarn("timeseries", "CSH Read from cache: %ldms", (t1 - t0).total_milliseconds());
             return true;
         }
+        xengine::StdWarn("timeseries", "CSH Read from file");
 
         std::string pathFile;
         if (!GetFilePath(nFile, pathFile))
@@ -387,11 +391,16 @@ protected:
         std::map<CDiskPos, size_t>::iterator it = mapCachePos.find(diskpos);
         if (it != mapCachePos.end())
         {
+            auto t0 = boost::posix_time::microsec_clock::universal_time();
             if (cacheStream.Seek((*it).second))
             {
+                auto t1 = boost::posix_time::microsec_clock::universal_time();
                 try
                 {
                     cacheStream >> t;
+                    auto t2 = boost::posix_time::microsec_clock::universal_time();
+                    xengine::StdWarn("timeseries", "CSH ReadFromCache cacheStream.Seek: %ldms, cacheStream >> t: %ldms", 
+                        (t1 - t0).total_milliseconds(), (t2 - t1).total_milliseconds());
                     return true;
                 }
                 catch (std::exception& e)
