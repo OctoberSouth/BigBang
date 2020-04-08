@@ -595,12 +595,7 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
     auto t8 = boost::posix_time::microsec_clock::universal_time();
     (void)t8;
 
-    StdLog("BlockChain", "CSH::BlockChain::ValidateBlock %ld, VerifyBlock %ld, vtx %ld, AddNew %ld, CommitBlockView %ld", 
-        (t1 - t0).total_milliseconds(), 
-        (t3-t2).total_milliseconds(), 
-        (t5-t4).total_milliseconds(),
-        (t6-t5).total_milliseconds(),
-        (t8-t7).total_milliseconds());
+    
 
     StdTrace("BlockChain", "AddNewBlock: commit blockchain success, block tx count: %ld, block: %s", block.vtx.size(), hash.GetHex().c_str());
 
@@ -611,6 +606,9 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
         Log("AddNewBlock Storage GetBlockChanges Error : %s ", hash.ToString().c_str());
         return ERR_SYS_STORAGE_ERROR;
     }
+
+    auto t9 = boost::posix_time::microsec_clock::universal_time();
+    (void)t9;
 
     if (!update.vBlockRemove.empty())
     {
@@ -645,6 +643,16 @@ Errno CBlockChain::AddNewBlock(const CBlock& block, CBlockChainUpdate& update)
             pIndexNew->GetBlockHeight(), pIndexNew->GetBlockHash().ToString().c_str(),
             update.vBlockAddNew.size(), update.vBlockRemove.size(), nTxAdd, nTxDel);
     }
+
+    auto t10 = boost::posix_time::microsec_clock::universal_time();
+    (void)t10;
+
+    StdLog("BlockChain", "CSH::BlockChain::ValidateBlock %ld, VerifyBlock %ld, vtx %ld, AddNew %ld, CommitBlockView %ld", 
+        (t1 - t0).total_milliseconds(), 
+        (t3-t2).total_milliseconds(), 
+        (t5-t4).total_milliseconds(),
+        (t6-t5).total_milliseconds(),
+        (t8-t7).total_milliseconds());
 
     return OK;
 }
