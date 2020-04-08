@@ -89,6 +89,13 @@ void CNetChannelPeer::AddKnownTx(const uint256& hashFork, const vector<uint256>&
 bool CNetChannelPeer::MakeTxInv(const uint256& hashFork, const vector<uint256>& vTxPool, vector<network::CInv>& vInv)
 {
     map<uint256, CNetChannelPeerFork>::iterator it = mapSubscribedFork.find(hashFork);
+    
+    for(const auto& hashFork : mapSubscribedFork)
+    {
+        StdLog("NetChannel", "MakeTxInv::Subscribed Fork: %s", hashFork.first.ToString().c_str());
+    }
+    
+    
     if (it != mapSubscribedFork.end())
     {
         CNetChannelPeerFork& peerFork = (*it).second;
@@ -599,6 +606,7 @@ bool CNetChannel::HandleEvent(network::CEventPeerInv& eventInv)
                     boost::unique_lock<boost::shared_mutex> wlock(rwNetPeer);
                     CNetChannelPeer& peer = mapPeer[nNonce];
                     peer.AddKnownTx(hashFork, vTxHash, 0);
+                    StdLog("NetChannel", "SetWaitGetTxComplete hashFork %s", hashFork.ToString().c_str());
                     peer.SetWaitGetTxComplete(hashFork);
                 }
 
@@ -678,6 +686,7 @@ bool CNetChannel::HandleEvent(network::CEventPeerGetData& eventGetData)
     {
         pPeerNet->DispatchEvent(&eventGetFail);
     }
+    StdLog("NetChannel", "SetPeerGetDataTime hashFork %s", hashFork.ToString().c_str());
     {
         boost::unique_lock<boost::shared_mutex> wlock(rwNetPeer);
         mapPeer[nNonce].SetPeerGetDataTime(hashFork);
@@ -925,6 +934,7 @@ bool CNetChannel::HandleEvent(network::CEventPeerMsgRsp& eventMsgRsp)
             map<uint64, CNetChannelPeer>::iterator it = mapPeer.find(nNonce);
             if (it != mapPeer.end())
             {
+                StdLog("NetChannel", "ResetTxInvSynStatus hashFork %s", hashFork.ToString().c_str());
                 it->second.ResetTxInvSynStatus(hashFork, eventMsgRsp.data.nRspResult == MSGRSP_RESULT_TXINV_COMPLETE);
                 fResetTxInvSyn = true;
             }
