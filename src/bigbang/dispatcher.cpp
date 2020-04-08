@@ -161,7 +161,7 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
         if (err == OK && !block.IsVacant())
         {
             auto t1 = boost::posix_time::microsec_clock::universal_time();
-            StdLog("Dispacther", "CSH::Dispacther::AddNewBlock ms: %ld", (t1-t0).total_milliseconds());
+            StdLog("Dispacther", "CSH::Dispacther::AddNewBlock ms: %ld", (t1 - t0).total_milliseconds());
             if (!nNonce)
             {
                 pDataStat->AddBlockMakerStatData(updateBlockChain.hashFork, block.IsProofOfWork(), block.vtx.size());
@@ -181,7 +181,7 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     {
         return err;
     }
-    
+
     auto t2 = boost::posix_time::microsec_clock::universal_time();
     CTxSetChange changeTxSet;
     if (!pTxPool->SynchronizeBlockChain(updateBlockChain, changeTxSet))
@@ -191,7 +191,6 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     }
 
     auto t3 = boost::posix_time::microsec_clock::universal_time();
-
 
     if (block.IsOrigin())
     {
@@ -251,7 +250,11 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     auto t8 = boost::posix_time::microsec_clock::universal_time();
     (void)t8;
 
-    StdLog("Dispacther", "CSH::Dispacther::SynchronizeBlockChain ms: %ld, Wallet::AddNewFork: %ld, ", (t3-t2).total_milliseconds(), (t4-t3).total_milliseconds());
+    StdLog("Dispacther", "CSH::Dispacther: pTxPool->SynchronizeBlockChain ms: %ld, pWallet->AddNewFork: %ld, "
+                         "pWallet->SynchronizeTxSet: %ld, pNetChannel->BroadcastBlockInv & pDataStat->AddP2pSynSendStatData: %ld"
+                         "pForkManager->ForkUpdate: %ld, UpdatePrimaryBlock: %ld",
+           (t3 - t2).total_milliseconds(), (t4 - t3).total_milliseconds(), (t5 - t4).total_milliseconds(),
+           (t6 - t5).total_milliseconds(), (t7 - t6).total_milliseconds(), (t8 - t7).total_milliseconds());
 
     return OK;
 }
