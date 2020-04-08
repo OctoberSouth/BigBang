@@ -89,6 +89,13 @@ void CNetChannelPeer::AddKnownTx(const uint256& hashFork, const vector<uint256>&
 bool CNetChannelPeer::MakeTxInv(const uint256& hashFork, const vector<uint256>& vTxPool, vector<network::CInv>& vInv)
 {
     map<uint256, CNetChannelPeerFork>::iterator it = mapSubscribedFork.find(hashFork);
+    
+    for(const auto& hashFork : mapSubscribedFork)
+    {
+        StdLog("NetChannel", "MakeTxInv::Subscribed Fork: %s", hashFork.first.ToString().c_str());
+    }
+    
+    
     if (it != mapSubscribedFork.end())
     {
         CNetChannelPeerFork& peerFork = (*it).second;
@@ -333,6 +340,7 @@ void CNetChannel::SubscribeFork(const uint256& hashFork, const uint64& nNonce)
             DispatchGetBlocksEvent(nPeer, hashFork);
         }
     }
+    StdLog("NetChannel", "SubscribeFork::BroadcastTxInv hashFork: %s", hashFork.ToString().c_str());
     BroadcastTxInv(hashFork);
 }
 
@@ -598,6 +606,7 @@ bool CNetChannel::HandleEvent(network::CEventPeerInv& eventInv)
                     boost::unique_lock<boost::shared_mutex> wlock(rwNetPeer);
                     CNetChannelPeer& peer = mapPeer[nNonce];
                     peer.AddKnownTx(hashFork, vTxHash, 0);
+                    StdLog("NetChannel", "SetWaitGetTxComplete hashFork %s", hashFork.ToString().c_str());
                     peer.SetWaitGetTxComplete(hashFork);
                 }
 
@@ -677,6 +686,7 @@ bool CNetChannel::HandleEvent(network::CEventPeerGetData& eventGetData)
     {
         pPeerNet->DispatchEvent(&eventGetFail);
     }
+    StdLog("NetChannel", "SetPeerGetDataTime hashFork %s", hashFork.ToString().c_str());
     {
         boost::unique_lock<boost::shared_mutex> wlock(rwNetPeer);
         mapPeer[nNonce].SetPeerGetDataTime(hashFork);
@@ -924,6 +934,7 @@ bool CNetChannel::HandleEvent(network::CEventPeerMsgRsp& eventMsgRsp)
             map<uint64, CNetChannelPeer>::iterator it = mapPeer.find(nNonce);
             if (it != mapPeer.end())
             {
+                StdLog("NetChannel", "ResetTxInvSynStatus hashFork %s", hashFork.ToString().c_str());
                 it->second.ResetTxInvSynStatus(hashFork, eventMsgRsp.data.nRspResult == MSGRSP_RESULT_TXINV_COMPLETE);
                 fResetTxInvSyn = true;
             }
@@ -935,6 +946,7 @@ bool CNetChannel::HandleEvent(network::CEventPeerMsgRsp& eventMsgRsp)
                      GetPeerAddressInfo(nNonce).c_str(), hashFork.GetHex().c_str());
             if (eventMsgRsp.data.nRspResult == MSGRSP_RESULT_TXINV_COMPLETE)
             {
+                StdLog("NetChannel", "CEventPeerMsgRsp::BroadcastTxInv hashFork: %s", hashFork.ToString().c_str());
                 BroadcastTxInv(hashFork);
             }
         }
@@ -1441,6 +1453,7 @@ void CNetChannel::AddNewTx(const uint256& hashFork, const uint256& txid, CSchedu
     }
     if (nAddNewTx)
     {
+        StdLog("NetChannel", "AddNewTx::BroadcastTxInv hashFork: %s", hashFork.ToString().c_str());
         BroadcastTxInv(hashFork);
     }
 }
@@ -1507,6 +1520,7 @@ void CNetChannel::SetPeerSyncStatus(uint64 nNonce, const uint256& hashFork, bool
         if (fSync)
         {
             mapUnsync[hashFork].erase(nNonce);
+            StdLog("NetChannel", "SetPeerSyncStatus::BroadcastTxInv hashFork: %s", hashFork.ToString().c_str());
             BroadcastTxInv(hashFork);
         }
         else
@@ -1594,7 +1608,15 @@ bool CNetChannel::PushTxInv(const uint256& hashFork)
                 {
                     if (!eventInv.data.empty())
                     {
+                        StdLog("NetChannel", "PushTxInv::Dispacthed event Inv hashFork: %s", hashFork.ToString().c_str());
                         pPeerNet->DispatchEvent(&eventInv);
+
+                        
+                        for(const auto& txinv : eventInv.data)
+                        {
+                            StdLog("NetChannel", "PushTxInv::Dispacthed event CInv: %s", txinv.nHash.ToString().c_str());
+                        }
+                        
                         StdTrace("NetChannel", "PushTxInv: send tx inv request, inv count: %ld, peer: %s",
                                  eventInv.data.size(), peer.GetRemoteAddress().c_str());
                         if (fCompleted && eventInv.data.size() == network::CInv::MAX_INV_COUNT)

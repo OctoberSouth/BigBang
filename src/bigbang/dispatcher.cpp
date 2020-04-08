@@ -161,7 +161,7 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
         if (err == OK && !block.IsVacant())
         {
             auto t1 = boost::posix_time::microsec_clock::universal_time();
-            StdLog("Dispacther", "CSH::Dispacther::AddNewBlock ms: %ld", (t1-t0).total_milliseconds());
+            StdLog("Dispacther", "CSH::Dispacther::AddNewBlock: %ldms", (t1 - t0).total_milliseconds());
             if (!nNonce)
             {
                 pDataStat->AddBlockMakerStatData(updateBlockChain.hashFork, block.IsProofOfWork(), block.vtx.size());
@@ -181,7 +181,7 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     {
         return err;
     }
-    
+
     auto t2 = boost::posix_time::microsec_clock::universal_time();
     CTxSetChange changeTxSet;
     if (!pTxPool->SynchronizeBlockChain(updateBlockChain, changeTxSet))
@@ -191,7 +191,6 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     }
 
     auto t3 = boost::posix_time::microsec_clock::universal_time();
-
 
     if (block.IsOrigin())
     {
@@ -251,7 +250,11 @@ Errno CDispatcher::AddNewBlock(const CBlock& block, uint64 nNonce)
     auto t8 = boost::posix_time::microsec_clock::universal_time();
     (void)t8;
 
-    StdLog("Dispacther", "CSH::Dispacther::SynchronizeBlockChain ms: %ld, Wallet::AddNewFork: %ld, ", (t3-t2).total_milliseconds(), (t4-t3).total_milliseconds());
+    StdLog("Dispacther", "CSH::Dispacther: pTxPool->SynchronizeBlockChain: %ldms, pWallet->AddNewFork: %ldms, "
+                         "pWallet->SynchronizeTxSet: %ldms, pNetChannel->BroadcastBlockInv & pDataStat->AddP2pSynSendStatData: %ldms, "
+                         "pForkManager->ForkUpdate: %ldms, UpdatePrimaryBlock: %ldms",
+           (t3 - t2).total_milliseconds(), (t4 - t3).total_milliseconds(), (t5 - t4).total_milliseconds(),
+           (t6 - t5).total_milliseconds(), (t7 - t6).total_milliseconds(), (t8 - t7).total_milliseconds());
 
     return OK;
 }
@@ -329,13 +332,16 @@ void CDispatcher::UpdatePrimaryBlock(const CBlock& block, const CBlockChainUpdat
         fut = std::async(std::launch::async, [cmd]() { return ::system(cmd.c_str()); });
     }
 
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
     CDelegateRoutine routineDelegate;
     pConsensus->PrimaryUpdate(updateBlockChain, changeTxSet, routineDelegate);
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
 
     int64 nPublishTime = GetTime();
     pDelegatedChannel->PrimaryUpdate(updateBlockChain.nLastBlockHeight - updateBlockChain.vBlockAddNew.size(),
                                      routineDelegate.vEnrolledWeight, routineDelegate.vDistributeData,
                                      routineDelegate.mapPublishData, routineDelegate.hashDistributeOfPublish, nPublishTime);
+    auto t2 = boost::posix_time::microsec_clock::universal_time();
 
     for (const CTransaction& tx : routineDelegate.vEnrollTx)
     {
@@ -356,6 +362,7 @@ void CDispatcher::UpdatePrimaryBlock(const CBlock& block, const CBlockChainUpdat
         }
         //}
     }
+    auto t3 = boost::posix_time::microsec_clock::universal_time();
 
     CEventBlockMakerUpdate* pBlockMakerUpdate = new CEventBlockMakerUpdate(0);
     if (pBlockMakerUpdate != nullptr)
@@ -372,8 +379,16 @@ void CDispatcher::UpdatePrimaryBlock(const CBlock& block, const CBlockChainUpdat
         pBlockMakerUpdate->data.nMintType = block.txMint.nType;
         pBlockMaker->PostEvent(pBlockMakerUpdate);
     }
+    auto t4 = boost::posix_time::microsec_clock::universal_time();
 
     SyncForkHeight(updateBlockChain.nLastBlockHeight);
+    auto t5 = boost::posix_time::microsec_clock::universal_time();
+
+    StdLog("Dispacther", "CSH::UpdatePrimaryBlock: pConsensus->PrimaryUpdate: %ldms, pDelegatedChannel->PrimaryUpdate: %ldms, "
+                         "AddNewEnrollTx: %ldms, CEventBlockMakerUpdate: %ldms, "
+                         "SyncForkHeight: %ldms",
+           (t1 - t0).total_milliseconds(), (t2 - t1).total_milliseconds(), (t3 - t2).total_milliseconds(),
+           (t4 - t3).total_milliseconds(), (t5 - t4).total_milliseconds());
 }
 
 void CDispatcher::ActivateFork(const uint256& hashFork, const uint64& nNonce)
