@@ -381,11 +381,10 @@ void CConsensus::PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChan
             delegate.Evolve(nBlockHeight, enrolled.mapWeight, enrolled.mapEnrollData, result, hash);
             auto t7 = boost::posix_time::microsec_clock::universal_time();
 
-            StdLog("Consensus", "CSH::Consensus::Evolve %ld", (t7-t6).total_milliseconds());
-
             std::map<CDestination, int64> mapDelegateVote;
             int64 nDelegateMinAmount = pBlockChain->GetDelegateMinEnrollAmount(hash);
             bool fGetVote = pBlockChain->GetBlockDelegateVote(hash, mapDelegateVote);
+            auto t8 = boost::posix_time::microsec_clock::universal_time();
             if (nDelegateMinAmount < 0 || !fGetVote)
             {
                 if (nDelegateMinAmount < 0)
@@ -431,6 +430,8 @@ void CConsensus::PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChan
                     }
                 }
             }
+            auto t9 = boost::posix_time::microsec_clock::universal_time();
+
 
             int nDistributeTargetHeight = nBlockHeight + CONSENSUS_DISTRIBUTE_INTERVAL + 1;
             int nPublishTargetHeight = nBlockHeight + 1;
@@ -442,6 +443,8 @@ void CConsensus::PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChan
                 delegate.HandleDistribute(nDistributeTargetHeight, hash, (*it).first, (*it).second);
             }
             routine.vDistributeData.push_back(make_pair(hash, result.mapDistributeData));
+
+            auto t10 = boost::posix_time::microsec_clock::universal_time();
 
             if (i == 0 && result.mapPublishData.size() > 0)
             {
@@ -458,6 +461,11 @@ void CConsensus::PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChan
             }
 
             routine.vEnrolledWeight.push_back(make_pair(hash, enrolled.mapWeight));
+
+            auto t11 = boost::posix_time::microsec_clock::universal_time();
+
+            StdLog("Consensus", "CSH::Consensus::Evolve %ld GetBlockDelegateVote %ld BuildEnrollTx %ld HandleDistribute %ld HandlePublish %ld", 
+                (t7-t6).total_milliseconds(), (t8-t7).total_milliseconds(), (t9-t8).total_milliseconds(), (t10-t9).total_milliseconds(), (t11-t10).total_milliseconds());
         }
     }
 
