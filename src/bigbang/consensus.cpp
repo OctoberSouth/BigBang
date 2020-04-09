@@ -370,6 +370,7 @@ void CConsensus::PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChan
         int nBlockHeight = CBlock::GetBlockHeightByHash(hash);
 
         CDelegateEnrolled enrolled;
+        auto tw = boost::posix_time::microsec_clock::universal_time();
         if (!pBlockChain->GetBlockDelegateEnrolled(hash, enrolled))
         {
             StdError("CConsensus", "PrimaryUpdate: GetBlockDelegateEnrolled fail, hash: %s", hash.GetHex().c_str());
@@ -464,8 +465,8 @@ void CConsensus::PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChan
 
             auto t11 = boost::posix_time::microsec_clock::universal_time();
 
-            StdLog("Consensus", "CSH::Consensus::Evolve %ld GetBlockDelegateVote %ld BuildEnrollTx %ld HandleDistribute %ld HandlePublish %ld", 
-                (t7-t6).total_milliseconds(), (t8-t7).total_milliseconds(), (t9-t8).total_milliseconds(), (t10-t9).total_milliseconds(), (t11-t10).total_milliseconds());
+            StdLog("Consensus", "CSH::Consensus::Evolve %ld GetBlockDelegateVote %ld BuildEnrollTx %ld HandleDistribute %ld HandlePublish %ld GetBlockDelegateEnrolled %ld", 
+                (t7-t6).total_milliseconds(), (t8-t7).total_milliseconds(), (t9-t8).total_milliseconds(), (t10-t9).total_milliseconds(), (t11-t10).total_milliseconds(), (t6-tw).total_milliseconds());
         }
     }
 
