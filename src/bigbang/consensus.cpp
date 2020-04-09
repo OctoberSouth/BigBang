@@ -326,19 +326,26 @@ void CConsensus::HandleHalt()
 
 void CConsensus::PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChange& change, CDelegateRoutine& routine)
 {
+    
+    auto tk = boost::posix_time::microsec_clock::universal_time();
+    
     boost::unique_lock<boost::mutex> lock(mutex);
 
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
     int nStartHeight = update.nLastBlockHeight - update.vBlockAddNew.size();
     if (!update.vBlockRemove.empty())
     {
         int nPrevBlockHeight = nStartHeight + update.vBlockRemove.size();
         delegate.Rollback(nPrevBlockHeight, nStartHeight);
     }
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
 
     for (map<CDestination, CDelegateContext>::iterator it = mapContext.begin(); it != mapContext.end(); ++it)
     {
         (*it).second.ChangeTxSet(change);
     }
+
+    auto t2 = boost::posix_time::microsec_clock::universal_time();
 
     /*for (int i = update.vBlockAddNew.size() - 1; i > 0; i--)
     {
@@ -449,6 +456,11 @@ void CConsensus::PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChan
             routine.vEnrolledWeight.push_back(make_pair(hash, enrolled.mapWeight));
         }
     }
+
+    auto t3 = boost::posix_time::microsec_clock::universal_time();
+
+    StdLog("Consensus", "CSH::Consensus::PrimaryUpdate UniqueLock %ld RollBack %ld ChangeTxSet %ld BlockAddNew&Enrolled&Envolve %ld", 
+        (t0-tk).total_milliseconds(), (t1-t0).total_milliseconds(), (t2-t1).total_milliseconds(), (t3-t2).total_milliseconds());
 }
 
 void CConsensus::AddNewTx(const CAssembledTx& tx)
