@@ -377,7 +377,11 @@ void CConsensus::PrimaryUpdate(const CBlockChainUpdate& update, const CTxSetChan
         else
         {
             delegate::CDelegateEvolveResult result;
+            auto t6 = boost::posix_time::microsec_clock::universal_time();
             delegate.Evolve(nBlockHeight, enrolled.mapWeight, enrolled.mapEnrollData, result, hash);
+            auto t7 = boost::posix_time::microsec_clock::universal_time();
+
+            StdLog("Consensus", "CSH::Consensus::Evolve %ld", (t7-t6).total_milliseconds());
 
             std::map<CDestination, int64> mapDelegateVote;
             int64 nDelegateMinAmount = pBlockChain->GetDelegateMinEnrollAmount(hash);
