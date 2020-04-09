@@ -68,7 +68,7 @@ void CDelegate::Evolve(int nBlockHeight, const map<CDestination, size_t>& mapWei
             mapVote.erase(it);
         }
     }
-
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
     // init
     {
         map<int, CDelegateVote>::iterator it = mapVote.find(nTarget);
@@ -88,10 +88,12 @@ void CDelegate::Evolve(int nBlockHeight, const map<CDestination, size_t>& mapWei
 
             auto t1 = boost::posix_time::microsec_clock::universal_time();
 
-            StdDebug("CDelegate", "Evolve Setup: target height: %d, time: %ld us, setup block: [%d] %s",
+            StdDebug("CDelegate", "CSH::Evolve Setup: target height: %d, time: %ld us, setup block: [%d] %s",
                      nTarget, (t1 - t0).ticks(), hashBlock.Get32(7), hashBlock.GetHex().c_str());
         }
     }
+
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
 
     // enroll & distribute
     {
@@ -126,10 +128,12 @@ void CDelegate::Evolve(int nBlockHeight, const map<CDestination, size_t>& mapWei
 
             auto t1 = boost::posix_time::microsec_clock::universal_time();
 
-            StdDebug("CDelegate", "Evolve Enroll: target height: %d, time: %ld us, distribute block: [%d] %s",
+            StdDebug("CDelegate", "CSH::Evolve Enroll: target height: %d, time: %ld us, distribute block: [%d] %s",
                      nEnrollEnd, (t1 - t0).ticks(), hashBlock.Get32(7), hashBlock.GetHex().c_str());
         } while (0);
     }
+
+    auto t2 = boost::posix_time::microsec_clock::universal_time();
 
     // publish
     {
@@ -188,10 +192,14 @@ void CDelegate::Evolve(int nBlockHeight, const map<CDestination, size_t>& mapWei
 
             auto t1 = boost::posix_time::microsec_clock::universal_time();
 
-            StdDebug("CDelegate", "Evolve Publish: target height: %d, time: %ld us, distribute block: [%d] %s",
+            StdDebug("CDelegate", "CSH::Evolve Publish: target height: %d, time: %ld us, distribute block: [%d] %s",
                      nPublish, (t1 - t0).ticks(), hashDistribute.Get32(7), hashDistribute.GetHex().c_str());
         } while (0);
     }
+
+    auto t3 = boost::posix_time::microsec_clock::universal_time();
+
+    StdLog("Delegate", "CSH::Delegate  Init %ld, Enroll %ld, Pulish %ld", (t1-t0).total_milliseconds(), (t2-t1).total_milliseconds(), (t3-t2).total_milliseconds());
 }
 
 void CDelegate::Rollback(int nBlockHeightFrom, int nBlockHeightTo)
