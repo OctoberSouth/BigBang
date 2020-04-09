@@ -170,7 +170,7 @@ public:
         if (ReadFromCache(t, CDiskPos(nFile, nOffset)))
         {
             auto t1 = boost::posix_time::microsec_clock::universal_time();
-            xengine::StdWarn("timeseries", "CSH Read from cache: %ldms", (t1 - t0).total_milliseconds());
+            xengine::StdWarn("timeseries", "CSH Read from cache: %ldms, nFile: %u, nOffset: %u", (t1 - t0).total_milliseconds(), nFile, nOffset);
             return true;
         }
         xengine::StdWarn("timeseries", "CSH Read from file");
