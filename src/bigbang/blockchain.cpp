@@ -1081,7 +1081,7 @@ bool CBlockChain::GetBlockDelegateAgreement(const uint256& hashBlock, CDelegateA
     pCoreProtocol->GetDelegatedBallot(agreement.nAgreement, agreement.nWeight, mapBallot, enrolled.vecAmount, pIndex->GetMoneySupply(), agreement.vBallot, pIndexRef->GetBlockHeight());
     if (!agreement.IsProofOfWork())
     {
-        Log("CDelegateVerify1 time: %ld, enroll: %ld, collect: %ld us", (t2 - t0).ticks(), (t1 - t0).ticks(), (t2 - t1).ticks());
+        Log("CSH::CDelegateVerify1 time: %ldus, enroll: %ldus, collect: %ld us", (t2 - t0).ticks(), (t1 - t0).ticks(), (t2 - t1).ticks());
     }
 
 
