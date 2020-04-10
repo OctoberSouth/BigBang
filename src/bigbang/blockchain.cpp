@@ -1209,10 +1209,14 @@ bool CBlockChain::GetBlockDelegateAgreement(const uint256& hashBlock, const CBlo
 
     CDelegateEnrolled enrolled;
 
+    auto tk = boost::posix_time::microsec_clock::universal_time();
+    
     if (!GetBlockDelegateEnrolled(pIndex->GetBlockHash(), enrolled))
     {
         return false;
     }
+
+    
 
     auto t0 = boost::posix_time::microsec_clock::universal_time();
     delegate::CDelegateVerify verifier(enrolled.mapWeight, enrolled.mapEnrollData);
@@ -1230,6 +1234,8 @@ bool CBlockChain::GetBlockDelegateAgreement(const uint256& hashBlock, const CBlo
     {
         Log("CSH::CDelegateVerify2 time: %ld, enroll: %ld, collect: %ld us", (t2 - t0).ticks(), (t1 - t0).ticks(), (t2 - t1).ticks());
     }
+
+    Log("CSH::GetBlockDelegateAgreement::GetBlockDelegateEnrolled %ld", (t0-tk).total_milliseconds());
 
     cacheAgreement.AddNew(hashBlock, agreement);
 
