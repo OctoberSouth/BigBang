@@ -12,6 +12,7 @@ using namespace xengine;
 
 #define ENROLLED_CACHE_COUNT (120)
 #define AGREEMENT_CACHE_COUNT (16)
+#define WITNESS_CACHE_COUNT (120)
 
 namespace bigbang
 {
@@ -20,7 +21,7 @@ namespace bigbang
 // CBlockChain
 
 CBlockChain::CBlockChain()
-  : cacheEnrolled(ENROLLED_CACHE_COUNT), cacheAgreement(AGREEMENT_CACHE_COUNT)
+  : cacheEnrolled(ENROLLED_CACHE_COUNT), cacheAgreement(AGREEMENT_CACHE_COUNT), cacheWitness(WITNESS_CACHE_COUNT)
 {
     pCoreProtocol = nullptr;
     pTxPool = nullptr;
@@ -41,6 +42,12 @@ bool CBlockChain::HandleInitialize()
     if (!GetObject("txpool", pTxPool))
     {
         Error("Failed to request txpool");
+        return false;
+    }
+
+    if(!GetObject("consensus", pConsensus))
+    {
+        Error("Failed to request consensus");
         return false;
     }
 
@@ -1064,12 +1071,26 @@ bool CBlockChain::GetBlockDelegateAgreement(const uint256& hashBlock, CDelegateA
     CDelegateEnrolled enrolled;
     if (!GetBlockDelegateEnrolled(pIndex->GetBlockHash(), enrolled))
     {
-        return false;
+         return false;
     }
 
     auto t0 = boost::posix_time::microsec_clock::universal_time();
-    delegate::CDelegateVerify verifier(enrolled.mapWeight, enrolled.mapEnrollData);
-    auto t1 = boost::posix_time::microsec_clock::universal_time();
+
+    delegate::CSecretShare witness;
+    delegate::CDelegateVerify verifier;
+    if(cacheWitness.Retrieve(hashBlock, witness))
+    {
+        delegate::CDelegateVerify verifierWitness(witness);
+        verifier = verifierWitness;
+        auto t1 = boost::posix_time::microsec_clock::universal_time();
+        StdLog("BlockChain", "CSH::Retriveve witness from cache success");
+    }
+    else
+    {
+        delegate::CDelegateVerify verifierEnroll(enrolled.mapWeight, enrolled.mapEnrollData);
+        verifier = verifierEnroll;
+    }
+    
     map<CDestination, size_t> mapBallot;
     if (!verifier.VerifyProof(block.vchProof, agreement.nAgreement, agreement.nWeight, mapBallot))
     {
@@ -1108,6 +1129,11 @@ uint32 CBlockChain::DPoSTimestamp(const uint256& hashPrev)
         return 0;
     }
     return pCoreProtocol->DPoSTimestamp(pIndexPrev);
+}
+
+void CBlockChain::AddNewWitness(const uint256& hashBlock, const delegate::CSecretShare& witness)
+{
+    cacheWitness.AddNew(hashBlock, witness);
 }
 
 bool CBlockChain::CheckContainer()

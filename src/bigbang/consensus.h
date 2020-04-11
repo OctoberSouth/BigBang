@@ -100,7 +100,6 @@ public:
     bool AddNewPublish(const uint256& hashDistributeAnchor, const CDestination& destFrom, const std::vector<unsigned char>& vchPublish) override;
     void GetAgreement(int nTargetHeight, uint256& nAgreement, std::size_t& nWeight, std::vector<CDestination>& vBallot) override;
     void GetProof(int nTargetHeight, std::vector<unsigned char>& vchProof) override;
-
 protected:
     bool HandleInitialize() override;
     void HandleDeinitialize() override;
