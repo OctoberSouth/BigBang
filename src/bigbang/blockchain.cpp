@@ -1075,14 +1075,14 @@ bool CBlockChain::GetBlockDelegateAgreement(const uint256& hashBlock, CDelegateA
     }
 
     auto t0 = boost::posix_time::microsec_clock::universal_time();
-
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
     delegate::CSecretShare witness;
     delegate::CDelegateVerify verifier;
     if(cacheWitness.Retrieve(hashBlock, witness))
     {
         delegate::CDelegateVerify verifierWitness(witness);
         verifier = verifierWitness;
-        auto t1 = boost::posix_time::microsec_clock::universal_time();
+        t1 = boost::posix_time::microsec_clock::universal_time();
         StdLog("BlockChain", "CSH::Retriveve witness from cache success");
     }
     else
