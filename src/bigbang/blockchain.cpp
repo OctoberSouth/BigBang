@@ -1242,7 +1242,7 @@ bool CBlockChain::GetBlockDelegateAgreement(const uint256& hashBlock, const CBlo
         return false;
     }
 
-
+    auto t0 = boost::posix_time::microsec_clock::universal_time();
     delegate::CSecretShare witness;
     delegate::CDelegateVerify verifier;
     if(cacheWitness.Retrieve(pIndex->GetBlockHash(), witness))
@@ -1255,7 +1255,7 @@ bool CBlockChain::GetBlockDelegateAgreement(const uint256& hashBlock, const CBlo
         delegate::CDelegateVerify verifierEnroll(enrolled.mapWeight, enrolled.mapEnrollData);
         verifier = verifierEnroll;
     }
-    
+    auto t1 = boost::posix_time::microsec_clock::universal_time();
     map<CDestination, size_t> mapBallot;
     if (!verifier.VerifyProof(block.vchProof, agreement.nAgreement, agreement.nWeight, mapBallot))
     {
