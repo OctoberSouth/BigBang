@@ -251,7 +251,7 @@ public:
     void BroadcastTxInv(const uint256& hashFork) override;
     void SubscribeFork(const uint256& hashFork, const uint64& nNonce) override;
     void UnsubscribeFork(const uint256& hashFork) override;
-    void SubmitCachePowBlock(const CConsensusParam& consParam) override;
+    bool SubmitCachePowBlock(const CConsensusParam& consParam) override;
     bool IsLocalCachePowBlock(int nHeight) override;
     bool AddCacheLocalPowBlock(const CBlock& block) override;
 
